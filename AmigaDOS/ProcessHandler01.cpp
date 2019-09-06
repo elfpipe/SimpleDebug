@@ -51,7 +51,7 @@ APTR AmigaDOSProcessHandler::loadChildProcess (const char *path, const char *com
 	}
 	BPTR homelock = IDOS->DupLock (lock);
 
-	BPTR output = IDOS->Open("CON:100/100/100/100/AUTO/CLOSE", MODE_OLDFILE);
+	BPTR output = IDOS->Open("CON:100/100/100/100/AUTO/CLOSE/WAIT", MODE_OLDFILE);
 
 	BPTR seglist = IDOS->LoadSeg (command);
 	
