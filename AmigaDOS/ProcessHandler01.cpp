@@ -76,7 +76,7 @@ APTR AmigaDOSProcessHandler::loadChildProcess (const char *path, const char *com
 		NP_Input,					IDOS->Input(),
 		NP_CloseInput,				FALSE,
 		NP_Output,					output,
-		NP_CloseOutput,				FALSE,
+		NP_CloseOutput,				TRUE,
 		NP_Error,					IDOS->ErrorOutput(),
 		NP_CloseError,				FALSE,
 		NP_NotifyOnDeathSigTask,	IExec->FindTask(NULL),
