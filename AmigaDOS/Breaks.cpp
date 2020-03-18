@@ -2,8 +2,6 @@
 //
 // breakmarkshandler.cpp - handle break markings in running code (Debug 101)
 //
-#include <proto/dos.h>
-
 #include <proto/exec.h>
 #include <string>
 
@@ -87,8 +85,6 @@ extern unsigned int meth_start, meth_end;
 
 int Breaks::memory_insert_break_instruction (uint32 address, uint32 *buffer)
 {
-	IDOS->Printf("INSERT break: 0x%x\n", address);
-
   uint32 oldAttr;
   APTR stack;
 
