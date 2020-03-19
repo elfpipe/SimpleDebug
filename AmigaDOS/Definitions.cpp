@@ -131,6 +131,7 @@ string Variable::valuePrintable(uint32_t stackPointer)
 void Structure::clear() {
 	for (list<StructEntry *>::iterator it = entries.begin(); it != entries.end(); it++)
 		delete *it;
+	entries.clear();
 }
 
 list<Variable *> Structure::children(Variable *parent)
@@ -152,6 +153,7 @@ list<Variable *> Structure::children(Variable *parent)
 void Enumerable::clear() {
 	for (list<EnumEntry *>::iterator it = entries.begin(); it != entries.end(); it++)
 		delete *it;
+	entries.clear();
 }
 
 string Enumerable::valuePrintable(int value32)
@@ -165,18 +167,15 @@ string Enumerable::valuePrintable(int value32)
 // --------------------------------------------------------------------------
 
 void Function::clear() {
-	for (vector<Line *>::iterator it = lines.begin(); it != lines.end(); it++) {
-		delete (*it);
-		lines.erase(it);
-	}
-	for (list<Variable *>::iterator it = variables.begin(); it != variables.end(); it++) {
-		delete (*it);
-		variables.erase(it);
-	}
-	for (list<Variable *>::iterator it = parameters.begin(); it != parameters.end(); it++) {
-		delete (*it);
-		variables.erase(it);
-	}
+	for (vector<Line *>::iterator it = lines.begin(); it != lines.end(); it++)
+		delete *it;
+	for (list<Variable *>::iterator it = variables.begin(); it != variables.end(); it++)
+		delete *it;
+	for (list<Variable *>::iterator it = parameters.begin(); it != parameters.end(); it++)
+		delete *it;
+	lines.clear();
+	variables.clear();
+	parameters.clear();
 }
 
 Function::Line *Function::lineFromAddress(uint32_t address)
@@ -306,15 +305,6 @@ bool Object::isSourceLine (string fileName, int lineNumber)
 		}
 	}
 	return false;
-}
-
-StabsDefinition *StabsObject::getTypeFromToken (StabsDefinition::Token token) {
-	for (list<Definition *>::iterator it = types.begin(); it != types.end(); it++) {
-		StabsDefinition *def = (StabsDefinition *)*it;
-		if (token == def->token)
-			return def;
-	}
-	return 0;
 }
 
 // ------------------------------------------------------------------------- //

@@ -9,6 +9,8 @@ IF(AMIGA)
         AmigaDOS/StringTools.cpp
         AmigaDOS/LowLevel.cpp
         AmigaDOS/Definitions.cpp
+        AmigaDOS/Interpreter.cpp
+        AmigaDOS/ElfHandle.cpp
     )
 
     SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -athread=native")

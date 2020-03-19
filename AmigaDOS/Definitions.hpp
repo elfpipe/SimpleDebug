@@ -1,11 +1,5 @@
-#ifndef DB101_STABSINTERPRETER_HPP
-#define DB101_STABSINTERPRETER_HPP
-
-//
-
-// stabsinterpreter.hpp - interpreter for symbtab format (Debug 101)
-
-//
+#ifndef DEFINITIONS_HPP
+#define DEFINITIONS_HPP
 
 #include "OSSymbols.hpp"
 
@@ -259,24 +253,12 @@ struct Object {
 	bool isSourceLine (string fileName, int line);
 };
 
-struct StabsObject : public Object {
-	SymtabEntry *stabsOffset;
-	bool wasInterpreted;
-
-	StabsObject(string name, Module *module, uint32_t startOffset, SymtabEntry *stabsOffset)
-	:	Object(name, module, startOffset)
-	{
-		this->stabsOffset = stabsOffset;
-		wasInterpreted = false;
-	}
-
-	StabsDefinition *getTypeFromToken (StabsDefinition::Token token);
-};
-
 struct Module {
 	string name;
 	list<Object *> objects;
 	list<Variable *> globals;
+
+	uint32_t addressBegin, addressEnd;
 
 	Module(string name) { this->name = name; }
 	Object *objectFromName(string name);

@@ -1,85 +1,86 @@
+#ifndef INTERPRETER_HPP
+#define INTERPRETER_HPP
 
+#include "Definitions.hpp"
+#include "ElfHandle.hpp"
+#include <string>
 
+using namespace std;
+
+StabsDefinition::Token interpretNumberToken(char *strptr);
+
+struct StabsObject;
 struct StabsFunction : public Function {
-	SymtabEntry *interpretFromSymtabs (SymtabEntry *sym, char *stabstr, Object *object, Header **header, uint32_t endOfSymtab);
+	StabsFunction() : Function(string(), 0x0, 0, 0) {}
+	StabsFunction(string name, uint32_t address, int size, StabsObject *object)
+	:	Function(name, address, size, (Object *)object)
+	{}
+	SymtabEntry *interpret (SymtabEntry *sym, char *stabstr, StabsObject *object, Header **header, uint32_t endOfSymtab);
 };
 
-
+struct StabsModule;
 struct StabsObject : public Object {
+	SymtabEntry *stabsOffset;
+	bool wasInterpreted;
 
+	StabsObject(string name, StabsModule *module, uint32_t startOffset, SymtabEntry *stabsOffset)
+	:	Object(name, (Module *)module, startOffset)
+	{
+		this->stabsOffset = stabsOffset;
+		wasInterpreted = false;
+	}
 
-	StabsStructureType *interpretStructOrUnion (char *strptr);
-	StabsEnumType *interpretEnum (char *strptr);
-	StabsTypeDefinition::StabsSimpleType interpretRange (char *strptr);
-	
-	StabsTypeDefinition *getInterpretType (char *strptr);
-	// ************************
-		SymtabEntry *interpretFromSymtabs (char *stabstr, SymtabEntry *sym, uint32_t stabsize);
+	StabsDefinition *getTypeFromToken (StabsDefinition::Token token);
 
+	Structure *interpretStructOrUnion (char *strptr);
+	Enumerable *interpretEnum (char *strptr);
+	StabsDefinition::Type interpretRange (char *strptr);
+	StabsDefinition *getInterpretType (char *strptr);
+
+	SymtabEntry *interpret (char *stabstr, SymtabEntry *sym, uint32_t stabsize);
 };
 
-
-
-
-struct StabsModule {
-	string name;
-	APTR *elfHandle;
+struct StabsModule : public Module {
+	ElfHandle *elfHandle;
 
 	char *stabstr;
 	uint32_t *stab;
 	uint32_t stabsize;
-
-	uint32_t addressBegin, addressEnd;
 	
 	OSSymbols symbols;
 
 	bool globalsLoaded;
 
 public:
-	StabsModule (string name, APTR handle) { this->name = name; this->handle = handle; }
-	
+	StabsModule (string name, ElfHandle *handle); // : Module(name) { elfHandle = handle; }
+	~StabsModule() { delete elfHandle; }
+
 	bool initialPass (bool loadEverything);
 	bool interpretGlobals ();
 	void readNativeSymbols();
-	bool loadInterpretObject (Object *object);
+	bool loadInterpretObject (StabsObject *object);
 
-	uint32_t symbolValue(std::string symbol) { return _nativeSymbols.valueOf(symbol); }
-	
-	Object *objectFromName(string name);
-	Object *objectFromAddress (uint32_t address);
+	uint32_t symbolValue(string symbol) { return symbols.valueOf(symbol); }
 };
 
 class StabsInterpreter
 {
 private:
-	list <StabsModule *> _modules;
+	list <StabsModule *> modules;
 
 private:
 	void clear();
 	
 public:
-	StabsInterpreter ();
-	~StabsInterpreter ();
+	StabsInterpreter() {}
+	~StabsInterpreter() { clear(); }
 
-	bool loadModule (OSHandle *handle);
+	bool loadModule (ElfHandle *handle);
 	bool loadModule (uint32_t randomAddress);
 
-	StabsModule *findModuleByName (std::string moduleName) {
-		for (list <StabsModule *>::iterator it = _modules.begin(); it != _modules.end(); it++)
-			if ((*it)->name().compare (moduleName))
-				return *it;
-	}
-	StabsModule *findModuleByAddress (uint32_t address) {
-		for (list <StabsModule *>::iterator it = _modules.begin(); it != _modules.end(); it++)
-			if (address >= (*it)->addressBegin() && address <= (*it)->addressEnd())
-				return *it;
-	}
-	StabsObject *objectFromAddress (uint32_t address) {
-		for (list <StabsModule *>::iterator it = _modules.begin(); it != _modules.end(); it++)
-			if(StabsObject *o = (*it)->objectFromAddress (address))
-				return o;
-		return 0;
-	}
+	StabsModule *moduleFromName (string moduleName);
+	StabsModule *moduleFromAddress (uint32_t address);
+	StabsObject *objectFromAddress (uint32_t address);
 };
 
 	
