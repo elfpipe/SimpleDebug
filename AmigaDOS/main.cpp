@@ -2,6 +2,8 @@
 #include "Process.hpp"
 #include "Breaks.hpp"
 
+#include "Interpreter.hpp"
+
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -94,7 +96,9 @@ int main(int argc, char *argv[])
     OSSymbols symbols;
     Breaks breaks;
 
-	APTR handle = 0;
+	StabsInterpreter interpreter;
+
+	ElfHandle *elfHandle = 0;
 
 	handler.init();
 
@@ -112,11 +116,13 @@ int main(int argc, char *argv[])
 					shellArgs = concat(args, 2);
 				}
 				if(args.size() >= 2) {
-					handle = handler.loadChildProcess("", args[1].c_str(), shellArgs.c_str());
+					APTR handle = handler.loadChildProcess("", args[1].c_str(), shellArgs.c_str());
 					if (handle) {
 						cout << "Child process loaded\n";
                         symbols.readNativeSymbols(handle);
         				//handler.readTaskContext();
+						elfHandle = new ElfHandle(handle, args[1].c_str(), false);
+						interpreter.loadModule(elfHandle);
 					}
 				}
 				if(args.size() < 2)
@@ -128,11 +134,13 @@ int main(int argc, char *argv[])
 				if(args.size() < 2) {
 					cout << "Not enough arguments\n";
 				} else {
-					handle = handler.attachToProcess(args[1].c_str());
+					APTR handle = handler.attachToProcess(args[1].c_str());
 					if(handle) {
 						cout << "Attached to process\n";
                         symbols.readNativeSymbols(handle);
                         //handler.readTaskContext();
+						elfHandle = new ElfHandle(handle, args[1].c_str(), false);
+						interpreter.loadModule(elfHandle);
                     }
 				}
 			}
@@ -179,6 +187,11 @@ int main(int argc, char *argv[])
                 cout << symbols.printableList();
                 break;
 
+			case 'w':
+				cout << "--Stabs:--\n";
+				cout << interpreter.printable();
+				break;
+				
 			case 't':
 				handler.setTraceBit();
                 cout << "TRACE bit set\n";

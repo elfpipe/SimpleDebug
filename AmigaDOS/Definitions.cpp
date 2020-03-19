@@ -126,6 +126,60 @@ string Variable::valuePrintable(uint32_t stackPointer)
 	return string();
 }
 
+string Definition::typePrintable(Type type)
+{
+	return to_string(type);
+/*	
+	switch(type) {
+		case T_UNKNOWN:
+			return "T_UNKNOWN";
+		case T_POINTER:
+			return "T_POINTER";
+		case T_ARRAY:
+			return "T_ARRAY";
+		case T_STRUCT:
+			return "T_STRUCT";
+		case T_UNION:
+			return "T_UNION";
+		case T_ENUM:
+			return "T_ENUM";
+		case T_CONFORMANT_ARRAY:
+			return "T_CONFORMANT_ARRAY";
+		case T_VOID:
+			return "T_VOID";
+		case T_BOOL:
+			return "T_BOOL";
+		case T_U8:
+			return "T_U8";
+		case T_8:
+			return "T_8";
+		case T_U16:
+			return "T_U16";
+		case T_16:
+			return "T_16";
+		case T_U32:
+			return "T_U32";
+		case T_32:
+			return "T_32";
+		case T_U64;
+			return "T_U64";
+		case T_64:
+			return "T_64";
+		case T_FLOAT32:
+			return "T_FLOAT32";
+		case T_FLOAT64:
+			return "T_FLOAT64";
+		case T_FLOAT128;
+			return "T_FLOAT128";
+	}
+	*/
+}
+
+string Definition::printable()
+{
+	return "D(" + typePrintable(type) + ") " + name + " " + (type == T_ARRAY ? "[" + blockSize + "]" : (pointsTo ? "(*)" + pointsTo->printable() : (structure ? structure->printable() : (enumerable ? enumerable->printable() : ";")))) + "\n";
+}
+
 // -------------------------------------------------------------------------------- //
 
 void Structure::clear() {
@@ -146,6 +200,14 @@ list<Variable *> Structure::children(Variable *parent)
 	return result;
 }
 
+string Structure::printable()
+{
+	string result = "STRUCT:{\n";
+	for(list<StructEntry *>::iterator it = entries.begin(); it != entries.end(); it++)
+		result += "E" + (*it)->type->printable() + " " + (*it)->name + " [" + to_string((*it)->bitOffset) + "," + to_string((*it)->bitSize) + "]\n";
+	result += "}\n";
+	return result;
+}
 // ---------------------------------------------------------------------------
 
 // -------------------------------------------------------------------------
@@ -162,6 +224,15 @@ string Enumerable::valuePrintable(int value32)
 		if (value32 == (*it)->value)
 			return printStringFormat ("%s <%d>", (*it)->name.c_str(), value32);
 	return printStringFormat ("0x%x <enum undefined>", value32);
+}
+
+string Enumerable::printable()
+{
+	string result = "ENUM{\n";
+	for(list<EnumEntry *>::iterator it = entries.begin(); it != entries.end(); it++)
+		result += "E:" + (*it)->name + "(" + (*it)->value + ")\n";
+	result += "}\n";
+	return result;
 }
 
 // --------------------------------------------------------------------------
@@ -223,6 +294,20 @@ bool Function::isSourceLine (int lineNumber, uint32_t address)
 	return false;
 }
 
+string Function::printable() {
+	string result = "FUNC:" + name + "(" + to_string(address) + "," + to_string(size) + " - " + object->name + ") {\n";
+
+	for(vector<Line *>::iterator it = lines.begin(); it != lines.end(); it++)
+		result += "L:<" + to_string((*it)->type) + "> " + "line " + to_string((*it)->line) + " offset " + to_string((*it)->offset) + " function " + (*it)->function->name + " header " + (*it)->header->name + "\n";
+	result += "VARIABLES:\n";
+	for(list<Variable *>::iterator it = variables.begin(); it != variables.end(); it++)
+		result += (*it)->printable();
+	result += "PARAMETERS:\n";
+	for(list<Variable *>::iterator it = parameters.begin(); it != parameters.end(); it++)
+		result += (*it)->printable();
+	result += "}\n";
+	return result;
+}
 /*
 struct stabs_function *stabs_checkbox_at_line (struct stabs_object *object, struct stabs_header *header, struct stabs_function *function, int sline, int *nline)
 {
@@ -307,6 +392,25 @@ bool Object::isSourceLine (string fileName, int lineNumber)
 	return false;
 }
 
+string Object::printable()
+{
+	string result = "OBJECT(" + name + ") from (" + module->name + ") offset(" + to_string(startOffset) + "," + to_string(endOffset) + ") {\n";
+
+	result += "TYPES:\n";
+	for(list<Definition *>::iterator it = types.begin(); it != types.end(); it++)
+		result += (*it)->printable();
+	result += "UNKNOWN TYPES:\n";
+	for(list<Definition *>::iterator it = unknownTypes.begin(); it != unknownTypes.end(); it++)
+		result += (*it)->printable();
+	result += "HEADERS:\n";
+	for(list<Header *>::iterator it = headers.begin(); it != headers.end(); it++)
+		result += (*it)->printable();
+	result += "FUNCTIONS:\n";
+	for(list<Function *>::iterator it = functions.begin(); it != functions.end(); it++)
+		result += (*it)->printable();
+	result += "}\n";
+	return result;
+}
 // ------------------------------------------------------------------------- //
 
 Object *Module::objectFromName(string name) {
@@ -321,4 +425,16 @@ Object *Module::objectFromAddress(uint32_t address) {
 		if ((*it)->addressInsideObject(address))
 			return *it;
 	return 0;
+}
+
+string Module::printable()
+{
+	string result = "MODULE (" + name + ") [" + to_string(addressBegin) + ", " + to_string(addressEnd) + "] {\n";
+	for(list<Object *>::iterator it = objects.begin(); it != objects.end(); it++)
+		result += (*it)->printable();
+	result += "VARIABLES:\n";
+	for(list<Variable *>::iterator it = variables.begin(); it != variables.end(); it++)
+		result += (*it)->printable();
+	result += "}\n";
+	return result;
 }

@@ -213,10 +213,10 @@ Definition::Type StabsObject::interpretRange (char *strptr)
 				ret = Definition::T_16;
 			else if(range <= 0xffffffff)
 				ret = Definition::T_32;
-			//else if(range <= 0xffffffffffffffff)
-			//	ret = T_64;
-			//else if(range <= 0xffffffffffffffffffffffffffffffff)
-			//	ret = T_128;
+			else if(range <= 0xffffffffffffffff)
+				ret = Definition::T_64;
+//			else if(range <= 0xffffffffffffffffffffffffffffffff)
+//				ret = Definition::T_128;
 			else
 				ret = Definition::T_UNKNOWN;
 		}
@@ -228,8 +228,8 @@ Definition::Type StabsObject::interpretRange (char *strptr)
 				ret = Definition::T_U16;
 			else if(range <= 0xffffffff)
 				ret = Definition::T_U32;
-			//else if(range <= 0xffffffffffffffff)
-			//	ret = T_U64;
+			else if(range <= 0xffffffffffffffff)
+				ret = Definition::T_U64;
 			//else if(range <= 0xffffffffffffffffffffffffffffffff)
 			//	ret = T_U128;
 			else
@@ -545,6 +545,13 @@ SymtabEntry *StabsObject::interpret (char *stabstr, SymtabEntry *stab, uint32_t 
 	return sym;
 }
 
+string StabsObject::printable()
+{
+	return Object::printable() + "STABS: " + to_string(stabsOffset) + " INTERPRETED(" + to_string(wasInterpreted) + ")\n";
+}
+
+// --------------------------------------------------------------------------------- //
+
 bool StabsModule::interpretGlobals ()
 {
 	SymtabEntry *sym = (SymtabEntry *)stab;
@@ -732,6 +739,16 @@ StabsModule::StabsModule (string name, ElfHandle *handle)
 	stabsize = elfHandle->getStabsSize ();
 }
 
+string StabsModule::printable()
+{
+	string result = Module::printable();
+	result += "ELF: " + elfHandle->getName(); + "\n";
+	result += "STABS: stabstr(" + to_string((int)stabstr) + ") stab(" + to_string((int)stab) + ") stabsize(" + to_string((int)stabsize) + ")\n";
+	result += symbols.printableList();	
+	result += "GLOBALS LOADED(" + to_string(globalsLoaded) + ")\n";
+	return result;
+}
+
 // ---------------------------------------------------------------------------------
 
 void StabsInterpreter::clear()
@@ -822,4 +839,12 @@ StabsObject *StabsInterpreter::objectFromAddress (uint32_t address) {
 		if(StabsObject *o = (StabsObject *)(*it)->objectFromAddress (address))
 			return o;
 	return 0;
+}
+
+string StabsInterpreter::printable()
+{
+	string result;
+	for(list<StabsModule *>::iterator it = modules.begin(); it != modules.end(); it++)
+		result += (*it)->printable();
+	return result;
 }

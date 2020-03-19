@@ -56,6 +56,9 @@ struct Definition {
 		this->structure = structure;
 		this->enumerable = enumerable;
 	}
+
+	string typePrintable(Type type);
+	string printable();
 };
 
 struct StabsDefinition : public Definition {
@@ -72,6 +75,8 @@ struct StabsDefinition : public Definition {
 	:	Definition(name, type, blockSize, pointsTo, structure, enumerable),
 		token(_token)
 	{}
+
+	string printable();
 };
 
 struct Variable {
@@ -109,6 +114,7 @@ struct Variable {
 
 	list <Variable *> children();
 	string valuePrintable(uint32_t stackPointer);
+	string printable();
 };
 
 struct Structure {
@@ -137,6 +143,8 @@ public:
         entries.push_back (new StructEntry(name, bitOffset, bitSize, type));
     }
 	list<Variable *> children(Variable *parent);
+
+	string printable();
 };
 
 
@@ -154,7 +162,9 @@ struct Enumerable {
 	void clear();
 
 	void addEntry (string name, int value) { entries.push_back (new EnumEntry(name, value)); }
+
 	string valuePrintable (int value32);
+	string printable();
 };
 
 struct Object;
@@ -162,6 +172,8 @@ struct Header {
 	string name;
 	Object *object;
 	Header (string name, Object *object) { this->name = name; this->object = object; }
+
+	string printable();
 };
 	
 struct Function {
@@ -219,6 +231,8 @@ struct Function {
 	string fileFromAddress(uint32_t address);
 
 //	SourcecodeReference currentSourcecodePosition (uint32_t stackpointer) { printf("ARG!\n"); return SourcecodeReference(); }
+
+	string printable();
 };
 
 struct Module;
@@ -251,6 +265,8 @@ struct Object {
 	Function *functionFromAddress (uint32_t address);
 	bool addressInsideObject (uint32_t address) { return address >= startOffset && address < endOffset; }
 	bool isSourceLine (string fileName, int line);
+
+	string printable();
 };
 
 struct Module {
@@ -263,6 +279,8 @@ struct Module {
 	Module(string name) { this->name = name; }
 	Object *objectFromName(string name);
 	Object *objectFromAddress(uint32_t address);
+
+	string printable();
 };
 
 ///////////////////////////

@@ -38,6 +38,8 @@ struct StabsObject : public Object {
 	StabsDefinition *getInterpretType (char *strptr);
 
 	SymtabEntry *interpret (char *stabstr, SymtabEntry *sym, uint32_t stabsize);
+
+	string printable();
 };
 
 struct StabsModule : public Module {
@@ -61,6 +63,8 @@ public:
 	bool loadInterpretObject (StabsObject *object);
 
 	uint32_t symbolValue(string symbol) { return symbols.valueOf(symbol); }
+
+	string printable();
 };
 
 class StabsInterpreter
@@ -81,6 +85,10 @@ public:
 	StabsModule *moduleFromName (string moduleName);
 	StabsModule *moduleFromAddress (uint32_t address);
 	StabsObject *objectFromAddress (uint32_t address);
+
+	list<StabsModule *> &getModules() { return modules; }
+
+	string printable();
 };
 
 	
