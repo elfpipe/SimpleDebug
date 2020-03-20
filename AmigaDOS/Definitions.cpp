@@ -126,10 +126,43 @@ string Variable::valuePrintable(uint32_t stackPointer)
 	return string();
 }
 
+string Variable::kindPrintable(Kind kind)
+{
+	switch(kind) {
+		case NOTYPE:
+			return "NOTYPE";
+		case POINTER:
+			return "POINTER";
+		case COMBINED:
+			return "COMBINED";
+		case NUMERICAL:
+			return "NUMERICAL";
+	}
+	return string();
+}
+
+string Variable::printable()
+{
+	return "VAR: " + name + "(" + type->printable() + ")" +  kindPrintable(kind) + " " + locationPrintable(location) + " " + to_string(offset) + (pointer ? pointer->printable() : "\n");
+}
+
+string Variable::locationPrintable(Location location)
+{
+	switch(location) {
+		case L_REGISTER:
+			return "L_REGISTER";
+		case L_STACK:
+			return "L_STACK";
+		case L_ABSOLUTE:
+			return "L_ABSOLUTE";
+		case L_POINTER:
+			return "L_POINTER";
+	}
+	return string();
+}
+
 string Definition::typePrintable(Type type)
 {
-	return to_string(type);
-/*	
 	switch(type) {
 		case T_UNKNOWN:
 			return "T_UNKNOWN";
@@ -161,7 +194,7 @@ string Definition::typePrintable(Type type)
 			return "T_U32";
 		case T_32:
 			return "T_32";
-		case T_U64;
+		case T_U64:
 			return "T_U64";
 		case T_64:
 			return "T_64";
@@ -169,15 +202,20 @@ string Definition::typePrintable(Type type)
 			return "T_FLOAT32";
 		case T_FLOAT64:
 			return "T_FLOAT64";
-		case T_FLOAT128;
+		case T_FLOAT128:
 			return "T_FLOAT128";
 	}
-	*/
+		return string();
 }
 
 string Definition::printable()
 {
-	return "D(" + typePrintable(type) + ") " + name + " " + (type == T_ARRAY ? "[" + blockSize + "]" : (pointsTo ? "(*)" + pointsTo->printable() : (structure ? structure->printable() : (enumerable ? enumerable->printable() : ";")))) + "\n";
+	return "D(" + typePrintable(type) + ") " + name + " " + (type == T_ARRAY ? "[" + to_string(blockSize) + "]" : (pointsTo ? "(*)" + pointsTo->printable() : (structure ? structure->printable() : (enumerable ? enumerable->printable() : ";")))) + "\n";
+}
+
+string StabsDefinition::printable()
+{
+	return Definition::printable() + "Token(" + to_string(token.file) + "," + to_string(token.type) + ")\n";
 }
 
 // -------------------------------------------------------------------------------- //
@@ -230,9 +268,16 @@ string Enumerable::printable()
 {
 	string result = "ENUM{\n";
 	for(list<EnumEntry *>::iterator it = entries.begin(); it != entries.end(); it++)
-		result += "E:" + (*it)->name + "(" + (*it)->value + ")\n";
+		result += "E:" + (*it)->name + "(" + to_string((*it)->value) + ")\n";
 	result += "}\n";
 	return result;
+}
+
+// ------------------------------------------------------------------------- //
+
+string Header::printable()
+{
+	return "HEADER: " + name + " from " + object->name + "\n";
 }
 
 // --------------------------------------------------------------------------
@@ -298,7 +343,7 @@ string Function::printable() {
 	string result = "FUNC:" + name + "(" + to_string(address) + "," + to_string(size) + " - " + object->name + ") {\n";
 
 	for(vector<Line *>::iterator it = lines.begin(); it != lines.end(); it++)
-		result += "L:<" + to_string((*it)->type) + "> " + "line " + to_string((*it)->line) + " offset " + to_string((*it)->offset) + " function " + (*it)->function->name + " header " + (*it)->header->name + "\n";
+		result += "L:<" + to_string((*it)->type) + "> " + "line " + to_string((*it)->line) + " offset " + to_string((*it)->offset) + " function " + (*it)->function->name + " header " + ((*it)->header ? (*it)->header->name : "*") + "\n";
 	result += "VARIABLES:\n";
 	for(list<Variable *>::iterator it = variables.begin(); it != variables.end(); it++)
 		result += (*it)->printable();
@@ -432,8 +477,8 @@ string Module::printable()
 	string result = "MODULE (" + name + ") [" + to_string(addressBegin) + ", " + to_string(addressEnd) + "] {\n";
 	for(list<Object *>::iterator it = objects.begin(); it != objects.end(); it++)
 		result += (*it)->printable();
-	result += "VARIABLES:\n";
-	for(list<Variable *>::iterator it = variables.begin(); it != variables.end(); it++)
+	result += "GLOBALS:\n";
+	for(list<Variable *>::iterator it = globals.begin(); it != globals.end(); it++)
 		result += (*it)->printable();
 	result += "}\n";
 	return result;

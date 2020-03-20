@@ -27,10 +27,9 @@ public:
 	
 	APTR nativeHandle () { return handle; }
     string getName() { return name; }
-//	bool isOpen () { return isOpen; }
 
 	bool open () {	
-		IElf->OpenElfTags(OET_ReadOnlyCopy, TRUE, OET_ElfHandle, handle, TAG_DONE);
+		handle = IElf->OpenElfTags(OET_ReadOnlyCopy, TRUE, OET_ElfHandle, handle, TAG_DONE);
         isOpen = true;
 		return isOpen;
 	}
@@ -43,15 +42,13 @@ public:
 		return IElf->RelocateSectionTags((Elf32_Handle)handle, GST_SectionName, ".stab", GST_Load, TRUE, TAG_DONE );
 	}
 	
-	char *getStabstrSection () { return (char *)(isOpen ? IElf->GetSectionTags((Elf32_Handle)handle, GST_SectionName, ".stabstr", TAG_DONE) : 0); }
-	uint32_t *getStabSection () { return (uint32_t *)(isOpen ? IElf->GetSectionTags((Elf32_Handle)handle, GST_SectionName, ".stab", TAG_DONE) : 0); }
-	Elf32_Shdr *getStabSectionHeader () { return isOpen ? IElf->GetSectionHeaderTags ((Elf32_Handle)handle, GST_SectionName, ".stab", TAG_DONE) : 0; }
+	char *getStabstrSection () { return (char *)IElf->GetSectionTags((Elf32_Handle)handle, GST_SectionName, ".stabstr", TAG_DONE); }
+	uint32_t *getStabSection () { return (uint32_t *)IElf->GetSectionTags((Elf32_Handle)handle, GST_SectionName, ".stab", TAG_DONE); }
+	Elf32_Shdr *getStabSectionHeader () { return IElf->GetSectionHeaderTags ((Elf32_Handle)handle, GST_SectionName, ".stab", TAG_DONE); }
 	uint32_t getStabsSize () {
-		if (isOpen) {
-			Elf32_Shdr *header = IElf->GetSectionHeaderTags ((Elf32_Handle)handle, GST_SectionName, ".stab", TAG_DONE);
-			return header->sh_size;
-		}
-		return 0;
+		Elf32_Shdr *header = IElf->GetSectionHeaderTags ((Elf32_Handle)handle, GST_SectionName, ".stab", TAG_DONE);
+		return header->sh_size;
 	}
+	void lock();
 };
 #endif //DB101_ELFHANDLE_HPP

@@ -33,13 +33,14 @@ public:
 	bool hasSymbols() { return symbolsLoaded; }
 	void clear();
 	
-	void readNativeSymbols(APTR handle);
+	void readAll(APTR handle);
 	void addSymbol(string name, uint32 value);
 	
 	uint32 valueOf(string name);
 	string nameFromValue(uint32 value);
 
-    string printableList();
-	void dummy (APTR handle);
+	//void dummy (APTR handle);
+
+    string printable();
 };
 #endif

@@ -33,7 +33,7 @@ void OSSymbols::clear() {
 		delete (*it);
 }
 
-void OSSymbols::readNativeSymbols(APTR handle) {
+void OSSymbols::readAll(APTR handle) {
 	IElf->OpenElfTags(OET_ElfHandle, handle, TAG_DONE);
 	
 	struct Hook hook;
@@ -65,13 +65,14 @@ string OSSymbols::nameFromValue(uint32 value) {
 	return string(); //throw something in this case too ??
 }
 
-string OSSymbols::printableList() {
+string OSSymbols::printable() {
     stringstream str;
 	for (list<OSSymbol *>::iterator it = symbols.begin (); it != symbols.end (); it++)
         str << (*it)->name << ": 0x" << (void *)(*it)->value << "\n";
     return str.str();
 }
 
+#if 0
 void OSSymbols::dummy(APTR handle) //32_Handle elfhandle)
 {
 	IElf->OpenElfTags(OET_ReadOnlyCopy, TRUE, OET_ElfHandle, handle, TAG_DONE);
@@ -88,3 +89,4 @@ void OSSymbols::dummy(APTR handle) //32_Handle elfhandle)
 
     IElf->CloseElfTags((Elf32_Handle)handle, CET_ReClose, FALSE, TAG_DONE);
 }
+#endif

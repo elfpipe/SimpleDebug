@@ -3,6 +3,7 @@
 #include "ElfHandle.hpp"
 #include "StringTools.hpp"
 
+#include <string>
 #include <string.h>
 
 #define MAX(a,b)	((a)>(b)?(a):(b))
@@ -555,7 +556,6 @@ string StabsObject::printable()
 bool StabsModule::interpretGlobals ()
 {
 	SymtabEntry *sym = (SymtabEntry *)stab;
-//	StabsVariable *variable;
 	StabsObject *object;
 	
 	// -- Progress::open ("Reading global symbols from symbols table...", _stabsize, 0);
@@ -571,12 +571,6 @@ bool StabsModule::interpretGlobals ()
 
 			case N_GSYM:
 			{
-				//bool keepopen = Db101Preferences::getValue("PREFS_KEEP_ELF_OPEN").bool();
-			
-				//if (!object->hasBeenInterpreted ())
-				//	object->load (_handle.elfHandle ());
-			//reset keep open??
-
 				char *strptr = &stabstr[sym->n_strx];
 				
 				string name = getStringUntil (strptr, ':');
@@ -600,45 +594,6 @@ bool StabsModule::interpretGlobals ()
 	return true;
 }
 
-
-bool StabsModule::loadInterpretObject (StabsObject *object)
-{
-	bool closeElf = true;
-	
-	// if(Settings::getValue ("PREFS_KEEP_ELF_OPEN").asBool ())
-	// 	closeElf = false;
-	
-	symbols.dummy (elfHandle);
-	elfHandle->performRelocation ();
-
-/*	Elf32_Handle elfhandle = sourcefile->module->elfhandle;
-	if(!elfisopen)
-	{
-		elfhandle = open_elfhandle(elfhandle);
-		sourcefile->module->elfhasbeenopened = TRUE;
-		symbols_dummy(elfhandle);
-		relocate_elfhandle(elfhandle);
-	}*/
-	
-	stabstr = elfHandle->getStabstrSection ();
-	stab = elfHandle->getStabSection ();
-	
-	if (!stab) {
-// --		Console::printToConsole (Console::OUTPUT_WARNING, "Failed to open stabs section for module %s", _name.c_str());
-		return false;
-	}
-	
-	stabsize = elfHandle->getStabsSize ();
-	
-	object->interpret (stabstr, object->stabsOffset, stabsize);
-
-	if (closeElf) {
-		elfHandle->close ();
-	}
-	
-	return true;
-}
-
 bool StabsModule::initialPass (bool loadEverything)
 {
 	// -- Progress::open ("Reading symtabs from executable...", _stabsize, 0);
@@ -646,9 +601,8 @@ bool StabsModule::initialPass (bool loadEverything)
 	StabsObject *object = 0;
 	SymtabEntry *sym = (SymtabEntry *)stab;	
 	bool firstTime = true;	
-	
-	while ((uint32_t)sym < (uint32_t)stab + stabsize) {
 		
+	while ((uint32_t)sym < (uint32_t)stab + stabsize) {
 		switch (sym->n_type) {
 			
 			case N_SO: {
@@ -699,10 +653,9 @@ bool StabsModule::initialPass (bool loadEverything)
 	return true;
 }
 
-
 void StabsModule::readNativeSymbols()
 {
-	symbols.readNativeSymbols (elfHandle);
+	symbols.readAll(elfHandle->nativeHandle());
 }
 
 #if 0
@@ -734,17 +687,134 @@ StabsModule::StabsModule (string name, ElfHandle *handle)
 	addressBegin = 0;
 	addressEnd = 0;
 	
-	stabstr = elfHandle->getStabstrSection ();
-	stab = elfHandle->getStabSection ();
-	stabsize = elfHandle->getStabsSize ();
+	elfHandle->performRelocation();
+	stabstr = elfHandle->getStabstrSection();
+	stab = elfHandle->getStabSection();
+	stabsize = elfHandle->getStabsSize();
+}
+
+string StabsModule::symPrintable(unsigned char code)
+{
+	switch(code) {
+		case N_UNDF:
+			return "N_UNDF";
+		case N_GSYM:
+			return "N_GSYM";
+		case N_FNAME:
+			return "N_FNAME";
+		case N_FUN:
+			return "N_FUN";
+		case N_STSYM:
+			return "N_STSYM";
+		case N_LCSYM:
+			return "N_LCSYM";
+		case N_MAIN:
+			return "N_MAIN";
+		case N_ROSYM:
+			return "N_ROSYM";
+		case N_PC:
+			return "N_PC";
+		case N_NSYMS:
+			return "N_NSYMS";
+		case N_NOMAP:
+			return "N_NOMAP";
+		case N_OBJ:
+			return "N_OBJ";
+		case N_OPT:
+			return "N_OPT";
+		case N_RSYM:
+			return "N_RSYM";
+		case N_M2C:
+			return "N_M2C";
+		case N_SLINE:
+			return "N_SLINE";
+		case N_DSLINE:
+			return "N_DSLINE";
+		case N_BSLINE:
+			return "N_BSLINE";
+//		case N_BROWS: //same value
+//			return "N_BROWS";
+		case N_DEFD:
+			return "N_DEFD";
+		case N_FLINE:
+			return "N_FLINE";
+		case N_EHDECL:
+			return "N_EHDECL";
+//		case N_MOD2:
+//			return "N_MOD2"; //same value
+		case N_CATCH:
+			return "N_CATCH";
+		case N_SSYM:
+			return "N_SSYM";
+		case N_ENDM:
+			return "N_ENDM";
+		case N_SO:
+			return "N_SO";
+		case N_ALIAS:
+			return "N_ALIAS";
+		case N_LSYM:
+			return "N_LSYM";
+		case N_BINCL:
+			return "N_BINCL";
+		case N_SOL:
+			return "N_SOL";
+		case N_PSYM:
+			return "N_PSYM";
+		case N_EINCL:
+			return "N_EINCL";
+		case N_ENTRY:
+			return "N_ENTRY";
+		case N_LBRAC:
+			return "N_LBRAC";
+		case N_EXCL:
+			return "N_EXCL";
+		case N_SCOPE:
+			return "N_SCOPE";
+		case N_PATCH:
+			return "N_PATCH";
+		case N_RBRAC:
+			return "N_RBRAC";
+		case N_BCOMM:
+			return "N_BCOMM";
+		case N_ECOMM:
+			return "N_ECOMM";
+		case N_ECOML:
+			return "N_ECOML";
+		case N_WITH:
+			return "N_WITH";
+		case N_NBTEXT:
+			return "N_BNTEXT";
+		case N_NBDATA:
+			return "N_NBDATA";
+		case N_NBBSS:
+			return "N_BNBSS";
+		case N_NBSTS:
+			return "N_NBSTS";
+		case N_NBLCS:
+			return "N_NBLCS";
+		case N_LENG:
+			return "N_LENG";
+	}
+	return "<UNNOWN STAB>";
+}
+
+string StabsModule::symtabsPrintable()
+{
+	string result;
+	SymtabEntry *sym = (SymtabEntry *)stab;	
+	while ((uint32_t)sym < (uint32_t)stab + stabsize) {
+		result += symPrintable(sym->n_type) + "\n";
+		sym++;
+	}
+	return result;
 }
 
 string StabsModule::printable()
 {
 	string result = Module::printable();
 	result += "ELF: " + elfHandle->getName(); + "\n";
-	result += "STABS: stabstr(" + to_string((int)stabstr) + ") stab(" + to_string((int)stab) + ") stabsize(" + to_string((int)stabsize) + ")\n";
-	result += symbols.printableList();	
+	result += "STABS: stabstr(" + to_string((unsigned int)stabstr) + ") stab(" + to_string((unsigned int)stab) + ") stabsize(" + to_string((unsigned int)stabsize) + ")\n";
+	result += symbols.printable();
 	result += "GLOBALS LOADED(" + to_string(globalsLoaded) + ")\n";
 	return result;
 }
@@ -759,61 +829,40 @@ void StabsInterpreter::clear()
 }
 
 bool StabsInterpreter::loadModule (ElfHandle *handle)
-{
-// --	Console::printToConsole (Console::OUTPUT_SYSTEM, "Load module %s", osHandle->name().c_str());
-	/*
-	if (handle->format() != OSHandle::FORMAT_Elf) {
-		Console::printToConsole (Console::OUTPUT_WARNING, "Application is not an elf object. Stabs will not be available.");
-		return false;
-	}*/
-	
-//	ElfHandle *elfHandle = (ElfHandle *)osHandle;
-	
-	//What is this?
-	//_nativeSymbols.dummy (elfHandle);
-	
-	bool success = handle->performRelocation();
-	
-	if (success) {
-// --		Console::printToConsole (Console::OUTPUT_WARNING, "Failed to perform relocation on oshandle. Stabs symbols will not be available.");
+{	
+//	bool success = handle->performRelocation();
+/*	
+	if (!success) {
+		printf("Failed to perform relocation on oshandle. Stabs symbols will not be available.\n");
 		return false;
 	}
-	
-	bool closeElfHandles = false;
-/*	if (!Settings::getValue ("PREFS_ALL_ELF_HANDLES_OPEN").asBool()) {
-		closeElfHandles = true;
-	}	
-*/
+*/	
+	bool closeElf = false;
 
-	StabsModule *module = new StabsModule(handle->getName(), handle); //'true' for 'elf handle has been opened'
+	StabsModule *module = new StabsModule(handle->getName(), handle);
 	modules.push_back (module);
 	
-	bool loadEverything = false;
+	bool loadAll = false;
 	
-//	SettingsObject value = Settings::getValue ("PREFS_LOAD_EVERYTHING_AT_ENTRY");
-//	switch (value.numerical()) {
 	int value = 1;
 	switch(value) {
 		case 1: //SETTINGS_LoadCompleteModule:
-			closeElfHandles = true;
-			loadEverything = true;
-			module->initialPass (loadEverything);
+			closeElf = true;
+			loadAll = true;
+			module->initialPass (loadAll);
 			break;
 			
 		case 2: //SETTINGS_LoadObjectLists:
-			module->initialPass (loadEverything);
+			module->initialPass (loadAll);
 			break;
 		
 		case 3: //SETTINGS_LoadOnlyHeaders:
 			break;
 	}
 	module->readNativeSymbols();
-
-//	if (Settings::getValue ("AUTO_LOAD_GLOBALS").asBool()) {
-		module->interpretGlobals ();
-//	}
+	module->interpretGlobals ();
 	
-	if(closeElfHandles) {
+	if(false) { //closeElf) {
 		handle->close();
 	}
 
@@ -822,7 +871,7 @@ bool StabsInterpreter::loadModule (ElfHandle *handle)
 
 StabsModule *StabsInterpreter::moduleFromName (string moduleName) {
 	for (list <StabsModule *>::iterator it = modules.begin(); it != modules.end(); it++)
-		if ((*it)->name.compare (moduleName))
+		if (!(*it)->name.compare (moduleName))
 			return *it;
 	return 0;
 }
@@ -843,7 +892,7 @@ StabsObject *StabsInterpreter::objectFromAddress (uint32_t address) {
 
 string StabsInterpreter::printable()
 {
-	string result;
+	string result = "MODULES:\n";
 	for(list<StabsModule *>::iterator it = modules.begin(); it != modules.end(); it++)
 		result += (*it)->printable();
 	return result;

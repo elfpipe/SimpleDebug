@@ -119,9 +119,9 @@ int main(int argc, char *argv[])
 					APTR handle = handler.loadChildProcess("", args[1].c_str(), shellArgs.c_str());
 					if (handle) {
 						cout << "Child process loaded\n";
-                        symbols.readNativeSymbols(handle);
-        				//handler.readTaskContext();
-						elfHandle = new ElfHandle(handle, args[1].c_str(), false);
+                        symbols.readAll(handle);
+
+ 						elfHandle = new ElfHandle(handle, args[1].c_str(), false);
 						interpreter.loadModule(elfHandle);
 					}
 				}
@@ -137,8 +137,8 @@ int main(int argc, char *argv[])
 					APTR handle = handler.attachToProcess(args[1].c_str());
 					if(handle) {
 						cout << "Attached to process\n";
-                        symbols.readNativeSymbols(handle);
-                        //handler.readTaskContext();
+                        symbols.readAll(handle);
+
 						elfHandle = new ElfHandle(handle, args[1].c_str(), false);
 						interpreter.loadModule(elfHandle);
                     }
@@ -184,14 +184,22 @@ int main(int argc, char *argv[])
 
             case 'p':
                 cout << "--Symbols:--\n";
-                cout << symbols.printableList();
+                cout << symbols.printable();
                 break;
 
 			case 'w':
 				cout << "--Stabs:--\n";
 				cout << interpreter.printable();
 				break;
-				
+			
+			case 'z': {
+				cout << "--Symtabs:--\n";
+				StabsModule *module = interpreter.moduleFromName(elfHandle->getName());
+				if(module) {
+					cout << module->symtabsPrintable();
+				}
+				break;
+			}
 			case 't':
 				handler.setTraceBit();
                 cout << "TRACE bit set\n";
@@ -211,6 +219,12 @@ int main(int argc, char *argv[])
                 breaks.suspend();
 				break;
 			}
+
+			case 'k':
+				cout << "==SKIP\n";
+				handler.asmSkip();
+				break;
+
 			case 'q':
 				exit = true;
 				break;
@@ -221,6 +235,7 @@ int main(int argc, char *argv[])
 				cout << "a <name>: attach to process in memory\n";
 				cout << "d: detach from child\n";
 				cout << "s: start execution\n";
+				cout << "k: skip instruction\n";
 				cout << "t: set trace bit\n";
 				cout << "u: unset trace bit\n";
 				cout << "r: read task context\n";

@@ -115,6 +115,9 @@ struct Variable {
 	list <Variable *> children();
 	string valuePrintable(uint32_t stackPointer);
 	string printable();
+
+	static string kindPrintable(Kind kind);
+	static string locationPrintable(Location location);
 };
 
 struct Structure {
@@ -281,15 +284,6 @@ struct Module {
 	Object *objectFromAddress(uint32_t address);
 
 	string printable();
-};
-
-///////////////////////////
-struct SymtabEntry {
-	unsigned long n_strx;
-	unsigned char n_type;
-	unsigned char n_other;
-	unsigned short n_desc;
-	unsigned int n_value;
 };
 
 #endif

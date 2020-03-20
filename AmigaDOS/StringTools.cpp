@@ -84,3 +84,23 @@ char *skip_numbers (char *strptr)
 		ret++;
 	return ret;
 }
+
+string to_string(unsigned int a)
+{
+    stringstream ss;
+    ss << a;
+	return ss.str();
+}
+
+string to_string(int a)
+{
+    stringstream ss;
+    ss << a;
+	return ss.str();
+}
+
+string to_string(bool b)
+{
+	if(b) return "true";
+	return "false";
+}
