@@ -143,7 +143,7 @@ string Variable::kindPrintable(Kind kind)
 
 string Variable::printable()
 {
-	return "VAR: " + name + "(" + type->printable() + ")" +  kindPrintable(kind) + " " + locationPrintable(location) + " " + to_string(offset) + (pointer ? pointer->printable() : "\n");
+	return "VAR: " + name + "(" + type->printable() + ")" +  kindPrintable(kind) + " " + locationPrintable(location) + " " + patch::toString(offset) + (pointer ? pointer->printable() : "\n");
 }
 
 string Variable::locationPrintable(Location location)
@@ -210,12 +210,12 @@ string Definition::typePrintable(Type type)
 
 string Definition::printable()
 {
-	return "D(" + typePrintable(type) + ") " + name + " " + (type == T_ARRAY ? "[" + to_string(blockSize) + "]" : (pointsTo ? "(*)" + pointsTo->printable() : (structure ? structure->printable() : (enumerable ? enumerable->printable() : ";")))) + "\n";
+	return "D(" + typePrintable(type) + ") " + name + " " + (type == T_ARRAY ? "[" + patch::toString(blockSize) + "]" : (pointsTo ? "(*)" + pointsTo->printable() : (structure ? structure->printable() : (enumerable ? enumerable->printable() : ";")))) + "\n";
 }
 
 string StabsDefinition::printable()
 {
-	return Definition::printable() + "Token(" + to_string(token.file) + "," + to_string(token.type) + ")\n";
+	return Definition::printable() + "Token(" + patch::toString(token.file) + "," + patch::toString(token.type) + ")\n";
 }
 
 // -------------------------------------------------------------------------------- //
@@ -242,7 +242,7 @@ string Structure::printable()
 {
 	string result = "STRUCT:{\n";
 	for(list<StructEntry *>::iterator it = entries.begin(); it != entries.end(); it++)
-		result += "E" + (*it)->type->printable() + " " + (*it)->name + " [" + to_string((*it)->bitOffset) + "," + to_string((*it)->bitSize) + "]\n";
+		result += "E" + (*it)->type->printable() + " " + (*it)->name + " [" + patch::toString((*it)->bitOffset) + "," + patch::toString((*it)->bitSize) + "]\n";
 	result += "}\n";
 	return result;
 }
@@ -268,7 +268,7 @@ string Enumerable::printable()
 {
 	string result = "ENUM{\n";
 	for(list<EnumEntry *>::iterator it = entries.begin(); it != entries.end(); it++)
-		result += "E:" + (*it)->name + "(" + to_string((*it)->value) + ")\n";
+		result += "E:" + (*it)->name + "(" + patch::toString((*it)->value) + ")\n";
 	result += "}\n";
 	return result;
 }
@@ -340,10 +340,10 @@ bool Function::isSourceLine (int lineNumber, uint32_t address)
 }
 
 string Function::printable() {
-	string result = "FUNC:" + name + "(" + to_string(address) + "," + to_string(size) + " - " + object->name + ") {\n";
+	string result = "FUNC:" + name + "(" + patch::toString(address) + "," + patch::toString(size) + " - " + object->name + ") {\n";
 
 	for(vector<Line *>::iterator it = lines.begin(); it != lines.end(); it++)
-		result += "L:<" + to_string((*it)->type) + "> " + "line " + to_string((*it)->line) + " offset " + to_string((*it)->offset) + " function " + (*it)->function->name + " header " + ((*it)->header ? (*it)->header->name : "*") + "\n";
+		result += "L:<" + patch::toString((*it)->type) + "> " + "line " + patch::toString((*it)->line) + " offset " + patch::toString((*it)->offset) + " function " + (*it)->function->name + " header " + ((*it)->header ? (*it)->header->name : "*") + "\n";
 	result += "VARIABLES:\n";
 	for(list<Variable *>::iterator it = variables.begin(); it != variables.end(); it++)
 		result += (*it)->printable();
@@ -439,7 +439,7 @@ bool Object::isSourceLine (string fileName, int lineNumber)
 
 string Object::printable()
 {
-	string result = "OBJECT(" + name + ") from (" + module->name + ") offset(" + to_string(startOffset) + "," + to_string(endOffset) + ") {\n";
+	string result = "OBJECT(" + name + ") from (" + module->name + ") offset(" + patch::toString(startOffset) + "," + patch::toString(endOffset) + ") {\n";
 
 	result += "TYPES:\n";
 	for(list<Definition *>::iterator it = types.begin(); it != types.end(); it++)
@@ -474,7 +474,7 @@ Object *Module::objectFromAddress(uint32_t address) {
 
 string Module::printable()
 {
-	string result = "MODULE (" + name + ") [" + to_string(addressBegin) + ", " + to_string(addressEnd) + "] {\n";
+	string result = "MODULE (" + name + ") [" + patch::toString(addressBegin) + ", " + patch::toString(addressEnd) + "] {\n";
 	for(list<Object *>::iterator it = objects.begin(); it != objects.end(); it++)
 		result += (*it)->printable();
 	result += "GLOBALS:\n";

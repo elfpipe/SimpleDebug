@@ -1,5 +1,5 @@
-#ifndef STRINGTOOLS_HPP
-#define STRINGTOOLS_HPP
+#ifndef STROGNTOOLS_HPP
+#define STRIGNTOOLS_HPP
 
 #include <stdarg.h>
 
@@ -18,15 +18,10 @@ string printStringFormat_helper (const char *format, va_list arg);
 string getStringUntil (char *input, char stopChar);
 char *skip_in_string (char *source, const char *pattern);
 char *skip_numbers (char *strptr);
-namespace patch {
-template <typename T>
-inline string toString(T a)
-{
-    stringstream ss;
-    ss << a;
-	return ss.str();
-}
-};
+string to_string(unsigned int a);
+string to_string(int a);
+string to_string(bool b);
+
 class astream {
 private:
     stringstream ss;
@@ -45,24 +40,16 @@ public:
         getline(ss, result, delim);
         return result;
     }
-    string getLine() {
+    string get() {
         string result;
         getline(ss, result);
         return result;
-    }
-    char get() {
-        int r = ss.get();
-        return r;
     }
     void skip(char delim) {
         get(delim);
     }
     void skip() {
-        get();
-    }
-    void peekSkip(char c) {
-        if(peek() == c)
-            skip();
+        ss.get();
     }
     void skipNums() {
         while(!ss.eof()) {
@@ -76,7 +63,7 @@ public:
     int getInt() {
         int result = 0;
         char c = ss.peek();
-        if(c == '-' || c >= '0' && c <= '9')
+        if(c >= '0' && c <= '9')
             ss >> result;
         return result;
     }
@@ -98,7 +85,7 @@ public:
     }
 };
 
-#if 0
+#if 1
 int main() {
     astream a("4321/1234:Hello#Hi#Howareyou");
     cout << a.endsWith('u') << "\n";

@@ -7,11 +7,12 @@ IF(AMIGA)
         AmigaDOS/OSSymbols.cpp
         AmigaDOS/Process.cpp
         AmigaDOS/Breaks.cpp
-        AmigaDOS/StringTools.cpp
         AmigaDOS/LowLevel.cpp
         AmigaDOS/Definitions.cpp
         AmigaDOS/Interpreter.cpp
         AmigaDOS/ElfHandle.cpp
+        AmigaDOS/Interpreter02.cpp
+        AmigaDOS/StringTools.cpp
     )
 
     SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -athread=native")

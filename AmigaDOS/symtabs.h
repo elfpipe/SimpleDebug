@@ -1,3 +1,5 @@
+#ifndef SYMTAB_H
+#define SYMTAB_H
 ///////////////////////////
 struct SymtabEntry {
 	unsigned long n_strx;
@@ -80,3 +82,5 @@ LAST_UNUSED_STAB_CODE
 #define	NF_COMPLEX16	4	/* Fortran double complex */
 #define	NF_COMPLEX32	5	/* Fortran complex*16 */
 #define	NF_LDOUBLE	6	/* Long double (whatever that is) */
+
+#endif

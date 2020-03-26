@@ -3,6 +3,7 @@
 #include "Breaks.hpp"
 
 #include "Interpreter.hpp"
+#include "Definitions02.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -189,7 +190,8 @@ int main(int argc, char *argv[])
 
 			case 'w':
 				cout << "--Stabs:--\n";
-				cout << interpreter.printable();
+				//cout << interpreter.printable();
+				printSyms();
 				break;
 			
 			case 'z': {

@@ -7,7 +7,7 @@ ElfHandle::ElfHandle (APTR handle, string name, bool isOpen) {
 
 //	if (!isOpen)
 		open();
-        lock();
+    //    lock();
 }
 
 ElfHandle::~ElfHandle() {

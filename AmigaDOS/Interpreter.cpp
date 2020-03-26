@@ -3,11 +3,15 @@
 #include "ElfHandle.hpp"
 #include "StringTools.hpp"
 
+#include "Definitions02.hpp"
+
 #include <string>
 #include <string.h>
 
 #define MAX(a,b)	((a)>(b)?(a):(b))
 #define MIN(a,b)	((a)<(b)?(a):(b))
+
+using namespace patch; //toString
 
 StabsDefinition::Token interpretNumberToken(char *strptr)
 {
@@ -17,7 +21,15 @@ StabsDefinition::Token interpretNumberToken(char *strptr)
 		return token;
 	}
 	
-	if ( (*strptr != '(') && !( '0' <= *strptr && *strptr <= '9') ) {
+	astream as(strptr);
+	as.skip('(');
+	token.file = as.getInt();
+	as.skip(',');
+	token.type = as.getInt();
+
+	return token;
+}
+/*	if ( (*strptr != '(') && !( '0' <= *strptr && *strptr <= '9') ) {
 		strptr++;
 	}
 	
@@ -31,13 +43,16 @@ StabsDefinition::Token interpretNumberToken(char *strptr)
 	token.type = atoi(strptr);
 	
 	return token;
-}
+}*/
 
-bool str_is_typedef (char *str)
+bool str_is_typedef (const char *str)
 {
-	char *ptr = str;
+	astream as(str);
+	as.skip(':');
+	return as.peek() == 't' || as.peek() == 'T';
+/*	char *ptr = str;
 	ptr = skip_in_string (ptr, ":");
-	return (*ptr == 't' || *ptr == 'T' ? true : false);
+	return (*ptr == 't' || *ptr == 'T' ? true : false);*/
 }
 
 SymtabEntry *StabsFunction::interpret (SymtabEntry *sym, char *stabstr, StabsObject *object, Header **header, uint32_t endOfSymtab)   
@@ -490,8 +505,6 @@ SymtabEntry *StabsObject::interpret (char *stabstr, SymtabEntry *stab, uint32_t 
 	//bool inHeader = false;
 	Header *header = 0;
 	
-	//StabsVariable *variable;
-
 	while ((uint32 *)sym < (uint32 *)stab + stabsize)
 	{
 		switch (sym->n_type)
@@ -548,7 +561,7 @@ SymtabEntry *StabsObject::interpret (char *stabstr, SymtabEntry *stab, uint32_t 
 
 string StabsObject::printable()
 {
-	return Object::printable() + "STABS: " + to_string(stabsOffset) + " INTERPRETED(" + to_string(wasInterpreted) + ")\n";
+	return Object::printable() + "STABS: " + toString(stabsOffset) + " INTERPRETED(" + toString(wasInterpreted) + ")\n";
 }
 
 // --------------------------------------------------------------------------------- //
@@ -598,6 +611,8 @@ bool StabsModule::initialPass (bool loadEverything)
 {
 	// -- Progress::open ("Reading symtabs from executable...", _stabsize, 0);
 	
+	readSyms((SymtabEntry *)stab, stabstr, stabsize);
+
 	StabsObject *object = 0;
 	SymtabEntry *sym = (SymtabEntry *)stab;	
 	bool firstTime = true;	
@@ -803,7 +818,7 @@ string StabsModule::symtabsPrintable()
 	string result;
 	SymtabEntry *sym = (SymtabEntry *)stab;	
 	while ((uint32_t)sym < (uint32_t)stab + stabsize) {
-		result += symPrintable(sym->n_type) + "\n";
+		result += symPrintable(sym->n_type) + " [" + toString(sym->n_value) + "] :" + (const char *)(stabstr + sym->n_strx) + "\n";
 		sym++;
 	}
 	return result;
@@ -813,9 +828,9 @@ string StabsModule::printable()
 {
 	string result = Module::printable();
 	result += "ELF: " + elfHandle->getName(); + "\n";
-	result += "STABS: stabstr(" + to_string((unsigned int)stabstr) + ") stab(" + to_string((unsigned int)stab) + ") stabsize(" + to_string((unsigned int)stabsize) + ")\n";
+	result += "STABS: stabstr(" + toString((unsigned int)stabstr) + ") stab(" + toString((unsigned int)stab) + ") stabsize(" + toString((unsigned int)stabsize) + ")\n";
 	result += symbols.printable();
-	result += "GLOBALS LOADED(" + to_string(globalsLoaded) + ")\n";
+	result += "GLOBALS LOADED(" + toString(globalsLoaded) + ")\n";
 	return result;
 }
 
@@ -829,14 +844,7 @@ void StabsInterpreter::clear()
 }
 
 bool StabsInterpreter::loadModule (ElfHandle *handle)
-{	
-//	bool success = handle->performRelocation();
-/*	
-	if (!success) {
-		printf("Failed to perform relocation on oshandle. Stabs symbols will not be available.\n");
-		return false;
-	}
-*/	
+{
 	bool closeElf = false;
 
 	StabsModule *module = new StabsModule(handle->getName(), handle);
