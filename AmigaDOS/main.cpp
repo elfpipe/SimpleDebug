@@ -2,8 +2,9 @@
 #include "Process.hpp"
 #include "Breaks.hpp"
 
-#include "Interpreter.hpp"
+//#include "Interpreter.hpp"
 #include "Definitions02.hpp"
+#include "ElfHandle.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -97,9 +98,10 @@ int main(int argc, char *argv[])
     OSSymbols symbols;
     Breaks breaks;
 
-	StabsInterpreter interpreter;
+//	StabsInterpreter interpreter;
 
 	ElfHandle *elfHandle = 0;
+	Binary *binary = 0;
 
 	handler.init();
 
@@ -123,7 +125,10 @@ int main(int argc, char *argv[])
                         symbols.readAll(handle);
 
  						elfHandle = new ElfHandle(handle, args[1].c_str(), false);
-						interpreter.loadModule(elfHandle);
+						elfHandle->performRelocation();
+
+						binary = new Binary(elfHandle->getName(), (SymtabEntry *)elfHandle->getStabSection(), elfHandle->getStabstrSection(), elfHandle->getStabsSize());
+						//interpreter.loadModule(elfHandle);
 					}
 				}
 				if(args.size() < 2)
@@ -141,7 +146,7 @@ int main(int argc, char *argv[])
                         symbols.readAll(handle);
 
 						elfHandle = new ElfHandle(handle, args[1].c_str(), false);
-						interpreter.loadModule(elfHandle);
+						//interpreter.loadModule(elfHandle);
                     }
 				}
 			}
@@ -183,23 +188,24 @@ int main(int argc, char *argv[])
 				cout << "ip: " << (void *)handler.ip() << "\n";
 				break;
 
-            case 'p':
-                cout << "--Symbols:--\n";
+            case 'o':
+                cout << "--OSSymbols:--\n";
                 cout << symbols.printable();
                 break;
 
-			case 'w':
+			case 'p':
 				cout << "--Stabs:--\n";
+				cout << binary->toString();
 				//cout << interpreter.printable();
-				printSyms();
+				//printSyms();
 				break;
 			
 			case 'z': {
 				cout << "--Symtabs:--\n";
-				StabsModule *module = interpreter.moduleFromName(elfHandle->getName());
-				if(module) {
-					cout << module->symtabsPrintable();
-				}
+				// StabsModule *module = interpreter.moduleFromName(elfHandle->getName());
+				// if(module) {
+				// 	cout << module->symtabsPrintable();
+				// }
 				break;
 			}
 			case 't':

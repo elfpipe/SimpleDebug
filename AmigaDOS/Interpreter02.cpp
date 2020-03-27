@@ -1,7 +1,7 @@
 #include "Definitions02.hpp"
 #include "symtabs.h"
 #include <vector>
-vector<Sym *> syms;
+//vector<Sym *> syms;
 vector<Type *> Type::types;
 Type::~Type(){}
 Type *InterpretType(Type::TypeNo no, astream &str) {
@@ -28,6 +28,9 @@ Type *InterpretType(Type::TypeNo no, astream &str) {
         case 'x': //conformant array
             type = new ConformantArray(no, str);
             break;
+        case 'f':
+            type = new FunctionType(no);
+            break;
         case '(': {
             Type::TypeNo iNo(str);
             if(iNo.equals(no)) {
@@ -45,105 +48,143 @@ Type *InterpretType(Type::TypeNo no, astream &str) {
         Type::addType(type);
     return type;
 }
-Sym *InterpretLSym(astream &str, uint64_t address) {
-    Sym *result = 0;
+Symbol *InterpretSymbol(astream &str, uint64_t address) {
+    Symbol *result = 0;
     string name = str.get(':');
     char c = str.peek();
+    if(c != '(') str.skip();
+    Type::TypeNo no(str);
+    Type *type = Type::findType(no);
+    if(!type)
+        type = InterpretType(no, str);    
     switch(c) {
         case 't':
-        case 'T': {
-            str.skip();
-            Type::TypeNo no(str);
-            Type *type = Type::findType(no);
-            if(!type)
-                type = InterpretType(no, str);
-            result = new TSym(name, type, address);
+        case 'T':
+            result = new Symbol(Symbol::S_Typedef, name, type, address);
             break;
-        }
-
-        case '(': {
-            Type::TypeNo no(str);
-            Type *type = Type::findType(no);
-            if(!type)
-                type = InterpretType(no, str);
-            result = new LSym(name, type, address);
+        case '(':
+            result = new Symbol(Symbol::S_Local, name, type, address);
             break;
-        }
-        
-        default: //??
+        case 'G':
+            result = new Symbol(Symbol::S_Global, name, type, address);
+            break;
+        case 'p':
+            result = new Symbol(Symbol::S_Param, name, type, address);
+            break;
+        default:
             cout << "error " << c << "\n";
             break;
     }
     return result;
-}/*
-GSym *InterpretGSym(astream &str) {
-    GSym *result = 0;
+}
+Function *InterpretFun(astream &str, uint64_t address) {
+    Function *result = 0;
     string name = str.get(':');
-    char c = str.peek();
+    char c = str.get();
     switch(c) {
-        case 'G': {
-            str.skip();
+        case 'F':
+        case 'f': {
             Type::TypeNo no(str);
             Type *type = Type::findType(no);
-            if(!type) 
-                type = InterpretType(no, str);
-            result = new GSym(name, type);
+            if(!type)
+                type = new FunctionType(no);
+            result = new Function(name, type, address);
             break;
         }
         default:
-            cout << "error";
             break;
     }
     return result;
 }
-PSym *InterpretPSym(astream &str, uint64_t address) {
-    PSym *result = 0;
-    string name = str.get(':');
-    char c = str.peek();
-    switch(c) {
-        case 'p': {
-            str.skip();
-            Type::TypeNo no(str);
-            Type *type = Type::findType(no);
-            if(!type) 
-                type = InterpretType(no, str);
-            result = new PSym(name, type, address);
-            break;
-        }
-        default:
-            cout << "error";
-            break;
-    }
-    return result;
-}*/
-void readSyms(SymtabEntry *stab, const char *stabstr, unsigned int stabsize) {
+SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *stabstr, uint64_t stabsize) {
     astream temp("r(0,0);0;-1;");
-    Type::types.push_back((Type *)new Range(Type::TypeNo(0, 0), temp));
+    types.push_back((Type *)new Range(Type::TypeNo(0, 0), temp));
 
+    SymtabEntry *sym = *_sym;
+    name = string(stabstr + sym->n_strx);
+    start = sym->n_value;
+    sym++;
+
+    Function *function = 0;
+	while ((uint32_t)sym < (uint32_t)stab + stabsize) {
+        astream str(string(stabstr + sym->n_strx));
+		switch (sym->n_type) {
+            case N_SO:
+                end = sym->n_value;
+                sym++;
+                break;
+			case N_LSYM: {
+                Symbol *symbol = InterpretSymbol(str, sym->n_value);
+                if(function)
+                    function->locals.push_back(symbol);
+                locals.push_back(symbol);
+                break;
+            }
+			case N_GSYM: {
+                Symbol *symbol = InterpretSymbol(str, sym->n_value);
+                if(symbol)
+                    globals.push_back(symbol);
+                break;
+            }
+            case N_FUN: {
+                function = InterpretFun(str, sym->n_value);
+                if(function)
+                    functions.push_back(function);
+                break;
+            }
+			case N_PSYM: {
+                Symbol *symbol = InterpretSymbol(str, sym->n_value);
+                function->params.push_back(symbol);
+                break;
+            }
+            case N_SLINE:
+                function->addLine(sym->n_value, sym->n_desc);
+                break;
+            case N_LBRAC:
+                function->locals.push_back(new LBracket(sym->n_value));
+                break;
+            case N_RBRAC:
+                function->locals.push_back(new RBracket(sym->n_value));
+                break;
+            default:
+                break;
+        }
+        sym++;
+    }
+    *_sym = sym;
+}
+string SourceObject::toString() {
+    string result = name + "<SO> : [ " + patch::toString((void *)start) + "," + patch::toString((void *)end) + " ] --- {\n";
+    for(vector<Type *>::iterator it = types.begin(); it != types.end(); it++)
+        result += (*it)->toString() + "\n";
+    for(vector<Symbol *>::iterator it = locals.begin(); it != locals.end(); it++)
+        result += (*it)->toString() + "\n";
+    for(vector<Symbol *>::iterator it = globals.begin(); it != globals.end(); it++)
+        result += (*it)->toString() + "\n";
+    for(vector<Function *>::iterator it = functions.begin(); it != functions.end(); it++)
+        result += (*it)->toString() + "\n";
+    return result + "}\n";
+}
+Binary::Binary(string name, SymtabEntry *stab, const char *stabstr, uint64_t stabsize) {
+    this->name = name;
+    this->stab = stab;
+    this->stabstr = stabstr;
+    this->stabsize = stabsize;
 	SymtabEntry *sym = stab;
 	while ((uint32_t)sym < (uint32_t)stab + stabsize) {
 		switch (sym->n_type) {
-			case N_LSYM: {
-                astream str(string(stabstr + sym->n_strx));
-                syms.push_back(InterpretLSym(str, sym->n_value));
-            }/*
-			case N_GSYM: {
-                astream str(string(stabstr + sym->n_strx));
-                syms.push_back(InterpretGSym(str));
-            }
-			case N_PSYM: {
-                astream str(string(stabstr + sym->n_strx));
-                syms.push_back(InterpretPSym(str, sym->n_value));
-            }*/
+            case N_SO:
+                objects.push_back(new SourceObject(&sym, stab, stabstr, stabsize));
+                break;
             default:
                 break;
         }
         sym++;
     }
 }
-void printSyms() {
-    cout << "--Syms:--\n";
-    for(vector<Sym *>::iterator it = syms.begin(); it != syms.end(); it++) {
-        cout << (*it)->toString() << "\n";
-    }
+string Binary::toString() {
+    string result = "<Binary> : [ STAB: 0x" + patch::toString((void*)stab) + " STABSTR: 0x" + patch::toString((void *)stabstr) + " STABSIZE: " + patch::toString((int)stabsize) + "] -- {\n";
+    for(vector<SourceObject *>::iterator it = objects.begin(); it != objects.end(); it++)
+        result += (*it)->toString();
+    return result + "}\n";
 }

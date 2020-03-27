@@ -62,7 +62,8 @@ public:
         T_Union,
         T_Enum,
         T_Pointer,
-        T_ConformantArray
+        T_ConformantArray,
+        T_Function
     } TypeClass;
     TypeClass typeClass;
     TypeNo no;
@@ -298,12 +299,8 @@ public:
         str.peekSkip('s');
         str.peekSkip('u');
         size = str.getInt();
-        while(1) {
+        while(!str.eof()) {
             string name = str.get(':');
-            if(str.eof()) {
-                addEntry(name, 0, 0, 0);
-                break;
-            }
             Type::TypeNo no(str);
             Type *type = Type::findType(no);
             if(!type)
@@ -402,79 +399,140 @@ public:
         return "<conformant>: "; // + dummy->toString();
     }
 };
-class Sym {
+class FunctionType : public Type {
+public:
+    FunctionType(Type::TypeNo no)
+    : Type(T_Function, no)
+    { }
+    string toString() { return "f" + no.toString(); }
+};
+class Symbol {
 public:
     typedef enum {
-        L_Typedef,
-        L_Local,
-        L_Param,
-        L_Global
+        S_Typedef,
+        S_Local,
+        S_Param,
+        S_Global,
+        S_Function,
+        S_Bracket
     } SymType;
     SymType symType;
     string name;
     uint64_t address; //location, depends on symType
-    Sym(SymType symType, string name, uint64_t address = 0) {
+    Type *type;
+    Symbol(SymType symType, string name, Type *type, uint64_t address = 0) {
         this->symType = symType;
         this->name = name;
+        this->type = type;
         this->address = address;
     }
     virtual string toString() {
-        return (symType == L_Typedef ? "<Typedef>" : "<0x" + patch::toString((void *)address) + ">");
+        string result(name);
+        switch(symType) {
+            case S_Typedef:
+                result += ": LSYM<typedef> ";
+                break;
+            case S_Local:
+                result += ": LSYM<var> ";
+                break;
+            case S_Param:
+                result += ": PSYM ";
+                break;
+            case S_Global:
+                result += ": GSYM ";
+                break;
+            case S_Function:
+                result += ": FUN ";
+        }
+        return result + "[addr: " + patch::toString((void *)address) + "] " + (type ? type->toString() : "");
     }
 };
-class TSym : public Sym {
+class Bracket : public Symbol {
 public:
-    Type *type;
-    TSym(string name, Type *type, uint64_t address)
-    : Sym(L_Typedef, name, address)
-    {
-        this->type = type;
-    }
+    typedef enum {
+        LBrac,
+        RBrac
+    } BracketType;
+    BracketType type;
+    uint64_t offset;
+    Bracket(BracketType type, uint64_t offset)
+    : Symbol(S_Bracket, "", 0, 0) { this->type = type; this->address = address; }
     string toString() {
-        return "TSYM: " + name + " : " + type->toString();
+        switch(type) {
+            case LBrac:
+                return "LBRAC {";
+            case RBrac:
+                return "RBRAC }";
+        }
+        return "";
     }
-
 };
-class LSym : public Sym {
+class LBracket : public Bracket {
 public:
-    Type *type;
-    LSym(string name, Type *type, uint64_t address)
-    : Sym(L_Local, name, address)
-    {
-        this->type = type;
-    }
-    string toString() {
-        return "LSYM: " + name + " : " + type->toString();
-    }
+    LBracket(uint64_t offset) : Bracket(LBrac, offset) {}
 };
-class GSym : public Sym {
+class RBracket : public Bracket {
 public:
-    Type *type;
-    GSym(string name, Type *type)
-    : Sym(L_Global, name)
-    {
-        this->type = type;
-    }
-    string toString() {
-        return "" + name + "(GSYM) : " + type->toString();
-    }
+    RBracket(uint64_t offset) : Bracket(RBrac, offset) {}
 };
-class PSym : public Sym {
+class Function : public Symbol {
 public:
-    Type *type;
-    PSym(string name, Type *type, uint64_t address)
-    : Sym(L_Param, name, address)
-    {
-        this->type = type;
+    uint64_t endAddress;
+    struct SLine {
+        uint64_t address;
+        int line;
+        SLine(uint64_t address, int line) {
+            this->address = address;
+            this->line = line;
+        }
+        string toString() {
+            return "SLINE [" + patch::toString(line) + "] 0x" + patch::toString((void *)address);
+        }
+    };
+    vector<SLine *> lines;
+    void addLine(uint64_t address, int line) {
+        lines.push_back(new SLine(address, line));
     }
+    vector<Symbol *> params;
+    vector<Symbol *> locals;
+    Function(string name, Type *type, uint64_t address)
+    : Symbol(S_Function, name, type, address),
+      endAddress(0)
+    { }
     string toString() {
-        return "" + name + "(PSYM) : " + type->toString();
+        string result = name + ": FUN [" + patch::toString((void *)address) + " ] of " + (type ? type->toString() : "<n>");
+        for(vector<SLine *>::iterator it = lines.begin(); it != lines.end(); it++)
+            result += (*it)->toString() + "\n";
+        for(vector<Symbol *>::iterator it = params.begin(); it != params.end(); it++)
+            result += "PARAM: " + (*it)->toString() + "\n";
+        for(vector<Symbol *>::iterator it = locals.begin(); it != locals.end(); it++)
+            result += (*it)->toString() + "\n";
+        return result + "}\n";
     }
 };
-Sym *InterpretLSym(astream &str, uint64_t address);
-GSym *InterpretGSym(astream &str);
-PSym *InterpretPSym(astream &str, uint64_t address);
-void readSyms(SymtabEntry *stab, const char *stabstr, unsigned int stabsize);
-void printSyms();
-
+class SourceObject {
+public:
+    string name;
+    uint64_t start, end;
+    vector<Type *> types;
+    vector<Symbol *> locals;
+    vector<Symbol *> globals;
+    vector<Function *> functions;
+public:
+    SourceObject(SymtabEntry **sym, SymtabEntry *stab, const char *stabstr, uint64_t stabsize);
+    string toString();
+};
+class Binary {
+public:
+    string name;
+    SymtabEntry *stab;
+    const char *stabstr;
+    uint64_t stabsize;
+    vector<SourceObject *> objects;
+public:
+    Binary(string name, SymtabEntry *stab, const char *stabstr, uint64_t stabsize);
+    string toString();
+};
+Symbol *InterpretSymbol(astream &str, uint64_t address);
+Function *InterpretFun(astream &str, uint64_t address);
 #endif //DEFINITIONS_HPP

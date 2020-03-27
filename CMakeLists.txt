@@ -8,8 +8,8 @@ IF(AMIGA)
         AmigaDOS/Process.cpp
         AmigaDOS/Breaks.cpp
         AmigaDOS/LowLevel.cpp
-        AmigaDOS/Definitions.cpp
-        AmigaDOS/Interpreter.cpp
+        #AmigaDOS/Definitions.cpp
+        #AmigaDOS/Interpreter.cpp
         AmigaDOS/ElfHandle.cpp
         AmigaDOS/Interpreter02.cpp
         AmigaDOS/StringTools.cpp
