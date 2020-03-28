@@ -9,7 +9,7 @@
 #include <limits.h>
 using namespace std;
 using namespace patch;
-class Range;
+class SourceObject;
 class Type {
 public:
     class TypeNo {
@@ -40,18 +40,6 @@ public:
             return "(" + patch::toString(t1) + "," + patch::toString(t2) + ")";
         }
     };
-public:
-    static vector<Type *> types;
-    static Type *findType(TypeNo &no) {
-        for(int i = 0; i < types.size(); i++)
-            if(types[i]->no.equals(no)) {
-                return types[i];
-            }
-        return 0;
-    }
-    static void addType(Type *type) {
-        types.push_back(type);
-    }
 public:
     typedef enum {
         T_Void,
@@ -242,31 +230,7 @@ public:
     uint64_t lower, upper;
     Type *type;
 public:
-    Array(TypeNo no, astream &str)
-    : Type(T_Array, no)
-    {
-        str.peekSkip('a');
-        if(str.peek() == 'r') {
-            str.skip();
-            TypeNo rNo(str);
-            range = dynamic_cast<Range *>(Type::findType(rNo));
-            if(!range) {
-                range = new Range(rNo, str);
-                Type::addType(range);
-            }
-        } else range = 0;
-        str.peekSkip(';');
-        lower = str.getInt();
-        str.peekSkip(';');
-        upper = str.getInt();
-        str.peekSkip(';');
-        if(str.peek() == '(') {
-            TypeNo tNo(str);
-            type = findType(tNo);
-            if(!type)
-                type = InterpretType(tNo, str);
-        } else type = 0;
-    }
+    Array(SourceObject *object, TypeNo no, astream &str);
     string toString() {
         return "a" + no.toString() + " [over: " + (range ? range->toString() : "<n>") + ";" + patch::toString((int)lower) + "," + patch::toString((int)upper)+ "] of " + (type ? type->toString() : "<n>");
     }
@@ -293,30 +257,7 @@ public:
     }
     uint64_t size;
 public:
-    Struct(TypeNo no, astream &str)
-    : Type(T_Struct, no)
-    {
-        str.peekSkip('s');
-        str.peekSkip('u');
-        size = str.getInt();
-        while(!str.eof()) {
-            string name = str.get(':');
-            Type::TypeNo no(str);
-            Type *type = Type::findType(no);
-            if(!type)
-                type = InterpretType(no, str);
-            str.peekSkip(',');
-            uint64_t bitOffset = str.getInt();
-            str.peekSkip(',');
-            uint64_t bitSize = str.getInt();
-            str.peekSkip(';');
-            addEntry(name, type, bitOffset, bitSize);
-            if(str.peek() == ';') {
-                str.skip();
-                break;
-            }
-        }
-    }
+    Struct(SourceObject *object, Type::TypeNo no, astream &str);
     string toString() {
         string result("s" + patch::toString((int)size) + " {\n");
         for(vector<Entry *>::iterator it = entries.begin(); it != entries.end(); it++)
@@ -368,16 +309,7 @@ class Pointer : public Type {
 public:
     Type *pointsTo;
 public:
-    Pointer(Type::TypeNo no, astream &str)
-    : Type(T_Pointer, no),
-    pointsTo(0)
-    {
-        str.skip();
-        Type::TypeNo pNo(str);
-        pointsTo = Type::findType(pNo);
-        if(!pointsTo)
-            pointsTo = InterpretType(no, str);
-    }
+    Pointer(SourceObject *object, Type::TypeNo no, astream &str);
     string toString() {
         return "(*) " + (pointsTo ? pointsTo->toString() : "");
     }
@@ -447,34 +379,6 @@ public:
         return result + "[addr: " + patch::toString((void *)address) + "] " + (type ? type->toString() : "");
     }
 };
-class Bracket : public Symbol {
-public:
-    typedef enum {
-        LBrac,
-        RBrac
-    } BracketType;
-    BracketType type;
-    uint64_t offset;
-    Bracket(BracketType type, uint64_t offset)
-    : Symbol(S_Bracket, "", 0, 0) { this->type = type; this->address = address; }
-    string toString() {
-        switch(type) {
-            case LBrac:
-                return "LBRAC {";
-            case RBrac:
-                return "RBRAC }";
-        }
-        return "";
-    }
-};
-class LBracket : public Bracket {
-public:
-    LBracket(uint64_t offset) : Bracket(LBrac, offset) {}
-};
-class RBracket : public Bracket {
-public:
-    RBracket(uint64_t offset) : Bracket(RBrac, offset) {}
-};
 class Scope {
 public:
     Scope *parent;
@@ -497,17 +401,19 @@ public:
     struct SLine {
         uint64_t address;
         int line;
-        SLine(uint64_t address, int line) {
+        string source;
+        SLine(uint64_t address, int line, string source) {
             this->address = address;
             this->line = line;
+            this->source = source;
         }
         string toString() {
             return "SLINE [" + patch::toString(line) + "] 0x" + patch::toString((void *)address);
         }
     };
     vector<SLine *> lines;
-    void addLine(uint64_t address, int line) {
-        lines.push_back(new SLine(address, line));
+    void addLine(uint64_t address, int line, string source) {
+        lines.push_back(new SLine(address, line, source));
     }
     vector<Symbol *> params;
     vector<Scope *> locals;
@@ -526,6 +432,8 @@ public:
         return result + "}\n";
     }
 };
+class Symbol;
+class Function;
 class SourceObject {
 public:
     string name;
@@ -535,7 +443,21 @@ public:
     vector<Symbol *> globals;
     vector<Function *> functions;
 public:
+    Type *findType(Type::TypeNo &no) {
+        for(int i = 0; i < types.size(); i++)
+            if(types[i]->no.equals(no)) {
+                return types[i];
+            }
+        return 0;
+    }
+    void addType(Type *type) {
+        types.push_back(type);
+    }
+public:
     SourceObject(SymtabEntry **sym, SymtabEntry *stab, const char *stabstr, uint64_t stabsize);
+    Type *interpretType(Type::TypeNo no, astream &str);
+    Symbol *interpretSymbol(astream &str, uint64_t address);
+    Function *interpretFun(astream &str, uint64_t address);
     string toString();
 };
 class Binary {
@@ -549,6 +471,4 @@ public:
     Binary(string name, SymtabEntry *stab, const char *stabstr, uint64_t stabsize);
     string toString();
 };
-Symbol *InterpretSymbol(astream &str, uint64_t address);
-Function *InterpretFun(astream &str, uint64_t address);
 #endif //DEFINITIONS_HPP
