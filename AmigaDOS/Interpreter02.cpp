@@ -106,6 +106,7 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
     sym++;
 
     Function *function = 0;
+    Scope *scope = 0;
 	while ((uint32_t)sym < (uint32_t)stab + stabsize) {
         astream str(string(stabstr + sym->n_strx));
 		switch (sym->n_type) {
@@ -116,8 +117,9 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
 			case N_LSYM: {
                 Symbol *symbol = InterpretSymbol(str, sym->n_value);
                 if(function)
-                    function->locals.push_back(symbol);
-                locals.push_back(symbol);
+                    scope->symbols.push_back(symbol);
+                else
+                    locals.push_back(symbol);
                 break;
             }
 			case N_GSYM: {
@@ -128,8 +130,10 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
             }
             case N_FUN: {
                 function = InterpretFun(str, sym->n_value);
-                if(function)
+                if(function) {
+                    function->locals.push_back(new Scope(0, function->address));
                     functions.push_back(function);
+                }
                 break;
             }
 			case N_PSYM: {
@@ -141,10 +145,11 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
                 function->addLine(sym->n_value, sym->n_desc);
                 break;
             case N_LBRAC:
-                function->locals.push_back(new LBracket(sym->n_value));
+                scope->children.push_back(scope = new Scope(scope, function->address + sym->n_value));
                 break;
             case N_RBRAC:
-                function->locals.push_back(new RBracket(sym->n_value));
+                scope->end = function->address + sym->n_value;
+                scope = scope->parent;
                 break;
             default:
                 break;

@@ -475,6 +475,22 @@ class RBracket : public Bracket {
 public:
     RBracket(uint64_t offset) : Bracket(RBrac, offset) {}
 };
+class Scope {
+public:
+    Scope *parent;
+    uint64_t begin, end;
+    vector<Symbol *> symbols;
+    vector<Scope *> children;
+    Scope(Scope *parent, uint64_t begin) { this->parent = parent; this->begin = begin; }
+    string toString() {
+        string result = "LBRAC: -- {\n";
+        for(vector<Symbol *>::iterator it = symbols.begin(); it != symbols.end(); it++)
+            result += (*it)->toString() + "\n";
+        for(vector<Scope *>::iterator it = children.begin(); it != children.end(); it++)
+            result += (*it)->toString();
+        return result + "} RBRAC --\n";
+    }
+};
 class Function : public Symbol {
 public:
     uint64_t endAddress;
@@ -494,7 +510,7 @@ public:
         lines.push_back(new SLine(address, line));
     }
     vector<Symbol *> params;
-    vector<Symbol *> locals;
+    vector<Scope *> locals;
     Function(string name, Type *type, uint64_t address)
     : Symbol(S_Function, name, type, address),
       endAddress(0)
@@ -505,7 +521,7 @@ public:
             result += (*it)->toString() + "\n";
         for(vector<Symbol *>::iterator it = params.begin(); it != params.end(); it++)
             result += "PARAM: " + (*it)->toString() + "\n";
-        for(vector<Symbol *>::iterator it = locals.begin(); it != locals.end(); it++)
+        for(vector<Scope *>::iterator it = locals.begin(); it != locals.end(); it++)
             result += (*it)->toString() + "\n";
         return result + "}\n";
     }

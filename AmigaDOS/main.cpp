@@ -250,6 +250,7 @@ int main(int argc, char *argv[])
 				cout << "b <symname>: break at symbol\n";
 				cout << "c: clear break\n";
 				cout << "i: print ip\n";
+				cout << "o: print os symbol list\n";
                 cout << "p: print symbol list\n";
 				cout << "q: quit debugger\n";
 				break;
