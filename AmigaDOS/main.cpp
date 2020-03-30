@@ -180,10 +180,6 @@ int main(int argc, char *argv[])
 				}
 				break;
 				
-			case 'r':
-				handler.readTaskContext();
-				break;
-
 			case 'i':
 				cout << "ip: " << (void *)handler.ip() << "\n";
 				break;
@@ -199,12 +195,13 @@ int main(int argc, char *argv[])
 				break;
 			
 			case 's': {
-                handler.asmStep();
+                //handler.asmStep();
+				
                 breaks.activate();
 				handler.go();
-				IExec->WaitPort(port);
-				exit = handleMessages(port, &handler);
+				handler.wait();
                 breaks.suspend();
+				exit = handleMessages(port, &handler);
 				break;
 			}
 
@@ -213,9 +210,11 @@ int main(int argc, char *argv[])
 				handler.asmSkip();
 				break;
 
-			case 't':
+			case 'z':
 				cout << "==ASM STEP\n";
 				handler.asmStep();
+				handler.wait();
+				exit = handleMessages(port, &handler);
 				break;
 
 			case 'q':
@@ -227,15 +226,18 @@ int main(int argc, char *argv[])
 				cout << "l <file> <args>: load child from file\n";
 				cout << "a <name>: attach to process in memory\n";
 				cout << "d: detach from child\n";
+
 				cout << "s: start execution\n";
 				cout << "k: skip instruction\n";
-				cout << "t: asm step\n";
-				cout << "r: read task context\n";
+				cout << "z: asm step\n";
+
 				cout << "b <symname>: break at symbol\n";
 				cout << "c: clear break\n";
+
 				cout << "i: print ip\n";
 				cout << "o: print os symbol list\n";
                 cout << "p: print binary structure\n";
+
 				cout << "q: quit debugger\n";
 				break;
 

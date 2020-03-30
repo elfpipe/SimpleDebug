@@ -3,6 +3,8 @@
 #include "Tracer.hpp"
 #include "LowLevel.hpp"
 
+#include <iostream>
+
 Tracer::Tracer(Process *process, ExceptionContext *context) {
     this->process = process;
     this->context = context;
@@ -54,21 +56,33 @@ uint32_t Tracer::branch()
 void Tracer::setTraceBit ()
 {
 	struct ExceptionContext ctx;
+//    cout << "ip: 0x" << (void *)context->ip << "\n";
 	IDebug->ReadTaskContext((struct Task *)process, &ctx, RTCF_STATE);
+    IExec->CacheClearE((APTR)&ctx, sizeof(ctx), CACRF_ClearI| CACRF_ClearD|CACRF_InvalidateD);
+
+    //IDOS->Delay(5);
 	//this is not supported on the sam cpu:
 	ctx.msr |= MSR_TRACE_ENABLE;
 	ctx.ip = context->ip; //we must reset this because of a system oddity
+//    cout << "ip: 0x" << (void *)ctx.ip << "\n";
 	IDebug->WriteTaskContext((struct Task *)process, &ctx, RTCF_STATE);
+    IExec->CacheClearE((APTR)&ctx, sizeof(ctx), CACRF_ClearI| CACRF_ClearD|CACRF_InvalidateD);
+//    IDOS->Delay(5);
 }
 
 void Tracer::unsetTraceBit ()
 {
 	struct ExceptionContext ctx;
 	IDebug->ReadTaskContext ((struct Task *)process, &ctx, RTCF_STATE);
+    IExec->CacheClearE((APTR)&ctx, sizeof(ctx), CACRF_ClearI| CACRF_ClearD|CACRF_InvalidateD);
+//    IDOS->Delay(5);
 	//this is not supported on the sam cpu:
 	ctx.msr &= ~MSR_TRACE_ENABLE;
 	ctx.ip = context->ip;
+//    cout << "ip: 0x" << (void *)ctx.ip << "\n";
 	IDebug->WriteTaskContext((struct Task *)process, &ctx, RTCF_STATE);
+    IExec->CacheClearE((APTR)&ctx, sizeof(ctx), CACRF_ClearI| CACRF_ClearD|CACRF_InvalidateD);
+//    IDOS->Delay(5);
 }
 
 bool Tracer::hasTraceBit()

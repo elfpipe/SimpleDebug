@@ -3,11 +3,12 @@
 // breakmarkshandler.cpp - handle break markings in running code (Debug 101)
 //
 #include <proto/exec.h>
+#include <proto/dos.h>
 #include <string>
 
 #include "Breaks.hpp"
 
-bool Breaks::isBreak(uint32 address)
+bool Breaks::isBreak(uint32_t address)
 {
 	for (list <Break *>::iterator it = breaks.begin (); it != breaks.end (); it++)
 		if (address == (*it)->address)
@@ -31,7 +32,7 @@ void Breaks::suspend()
 	activated = false;
 }
 
-void Breaks::insert(uint32 address)
+void Breaks::insert(uint32_t address)
 {
 	if (isBreak(address))
 		return;
@@ -39,7 +40,7 @@ void Breaks::insert(uint32 address)
 	breaks.push_back(new Break(address));
 }
 
-void Breaks::remove(uint32 address)
+void Breaks::remove(uint32_t address)
 {
 	for (list<Break *>::iterator it = breaks.begin(); it != breaks.end(); it++)
 		if (address == (*it)->address) {
@@ -75,15 +76,41 @@ asm (
 "meth_end:				\n"
 );
 
-extern unsigned int meth_start, meth_end;
+asm (
+"	.globl setbreak		\n"
+"	.set MSR_DR,0x0010	\n"
+"	.set MSR_EE,0x8000	\n"
+"setbreak:				\n"
 
+"	mr    %r5, %r3		\n"
+
+"	mfmsr %r11			\n"
+"	ori   %r12, %r11, MSR_DR|MSR_EE	\n" //         # Turn off address  translation
+"	xori  %r12, %r12, MSR_DR|MSR_EE	\n" //         # and interrupts
+"	sync				\n"
+"	mtmsr %r12			\n"
+"	isync				\n"
+
+//# do modification here, leave r11 intact
+"	lwz   %r3, 0(%r5)		\n"
+"	stw   %r4, 0(%r5)		\n"
+
+"	sync           		\n"             //          # make sure store is complete
+"	mtmsr         %r11	\n"
+"	isync				\n"
+
+"	blr					\n"
+);
+
+extern unsigned int meth_start, meth_end;
+extern "C" uint32_t setbreak(uint32_t, uint32_t); //uint32_t, uint32_t);
 //
 
 // breakpoint insertion
 
 //
 
-int Breaks::memory_insert_break_instruction (uint32 address, uint32 *buffer)
+int Breaks::memory_insert_break_instruction (uint32_t address, uint32_t *buffer)
 {
   uint32 oldAttr;
   APTR stack;
@@ -98,30 +125,31 @@ int Breaks::memory_insert_break_instruction (uint32 address, uint32 *buffer)
 	oldAttr = IMMU->GetMemoryAttrs ((APTR)address, 0);
 	IMMU->SetMemoryAttrs ((APTR)address, 4, MEMATTRF_READ_WRITE);
 
-#if 1
+#if 0
 		*buffer = *(uint32 *)address;
 		*(uint32 *)address = meth_start;
 #else
-		uint32 realAddress = (uint32)IMMU->GetPhysicalAddress ((APTR)address);
+		uint32_t realAddress = (uint32_t)IMMU->GetPhysicalAddress ((APTR)address);
 		if (realAddress == 0x0)
 			realAddress = address;
-	  
+
+		int hallo = meth_start;
 		*buffer = setbreak (realAddress, meth_start);
 #endif
 
 	/* Set old attributes again */
 	IMMU->SetMemoryAttrs ((APTR)address, 4, oldAttr);
-	
+
 	/* Return to old state */
 	if (stack)
 		IExec->UserState (stack);
   }
-  //IExec->CacheClearU();
-
+IExec->CacheClearE((APTR)address, 0xffffffff, CACRF_ClearI| CACRF_ClearD);
+//IDOS->Delay(50);
   return 0;
 }
 
-int Breaks::memory_remove_break_instruction (uint32 address, uint32 *buffer)
+int Breaks::memory_remove_break_instruction (uint32_t address, uint32_t *buffer)
 {
   uint32 oldAttr;
   APTR stack;
@@ -136,10 +164,10 @@ int Breaks::memory_remove_break_instruction (uint32 address, uint32 *buffer)
 	oldAttr = IMMU->GetMemoryAttrs ((APTR)address, 0);
 	IMMU->SetMemoryAttrs ((APTR)address, 4, MEMATTRF_READ_WRITE);
 
-#if 1
+#if 0
 		*(uint32 *)address = *buffer;	//restore old instruction
 #else
-		uint32 realAddress = (uint32)IMMU->GetPhysicalAddress ((APTR)addr);
+		uint32_t realAddress = (uint32_t)IMMU->GetPhysicalAddress ((APTR)address);
 		if (realAddress == 0x0)
 			realAddress = address;
 		setbreak (realAddress, *buffer);
@@ -147,13 +175,14 @@ int Breaks::memory_remove_break_instruction (uint32 address, uint32 *buffer)
 
 	/* Set old attributes again */
 	IMMU->SetMemoryAttrs ((APTR)address, 4, oldAttr);
-	  
+
+
 	/* Return to old state */
 	if (stack)
 		IExec->UserState(stack);
   }
-  //IExec->CacheClearU();
-
+IExec->CacheClearE((APTR)address, 0xffffffff, CACRF_ClearI| CACRF_ClearD);
+//IDOS->Delay(50);
   return 0;
 }
 #endif

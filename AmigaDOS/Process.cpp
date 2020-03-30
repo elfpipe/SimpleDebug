@@ -276,9 +276,7 @@ void AmigaDOSProcess::asmStep()
 	Tracer tracer(child, &context);
 	tracer.activate();
 	go();
-	wait();
 	tracer.suspend();
-	wakeUp();
 }
 
 // --------------------------------------------------------------------------- //
@@ -296,7 +294,7 @@ void AmigaDOSProcess::wait()
 
 void AmigaDOSProcess::wakeUp()
 {
-	IExec->Signal((struct Task *)child, childSignal);
+	IExec->Signal((struct Task *)IExec->FindTask(0), childSignal);
 }
 // ---------------------------------------------------------------------------- //
 
