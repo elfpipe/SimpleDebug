@@ -112,77 +112,56 @@ extern "C" uint32_t setbreak(uint32_t, uint32_t); //uint32_t, uint32_t);
 
 int Breaks::memory_insert_break_instruction (uint32_t address, uint32_t *buffer)
 {
-  uint32 oldAttr;
-  APTR stack;
+	/* Go supervisor */
+	APTR stack = IExec->SuperState();
 
-  /* Write the breakpoint.  */
-  if (1)
-  {
-  	/* Go supervisor */
-	stack = IExec->SuperState ();
-
-  	/* Make sure to unprotect the memory area */
-	oldAttr = IMMU->GetMemoryAttrs ((APTR)address, 0);
+	/* Make sure to unprotect the memory area */
+	uint32 oldAttr = IMMU->GetMemoryAttrs ((APTR)address, 0);
 	IMMU->SetMemoryAttrs ((APTR)address, 4, MEMATTRF_READ_WRITE);
 
-#if 0
-		*buffer = *(uint32 *)address;
-		*(uint32 *)address = meth_start;
-#else
-		uint32_t realAddress = (uint32_t)IMMU->GetPhysicalAddress ((APTR)address);
-		if (realAddress == 0x0)
-			realAddress = address;
+	uint32_t realAddress = (uint32_t)IMMU->GetPhysicalAddress ((APTR)address);
+	if (realAddress == 0x0)
+		realAddress = address;
 
-		int hallo = meth_start;
-		*buffer = setbreak (realAddress, meth_start);
-#endif
+	int hallo = meth_start;
+	*buffer = setbreak (realAddress, meth_start);
+
+	IExec->CacheClearE((APTR)address, 0xffffffff, CACRF_ClearI| CACRF_ClearD);
 
 	/* Set old attributes again */
 	IMMU->SetMemoryAttrs ((APTR)address, 4, oldAttr);
 
 	/* Return to old state */
-	if (stack)
-		IExec->UserState (stack);
-  }
-IExec->CacheClearE((APTR)address, 0xffffffff, CACRF_ClearI| CACRF_ClearD);
-//IDOS->Delay(50);
-  return 0;
+	if (stack) IExec->UserState (stack);
+
+	return 0;
 }
 
 int Breaks::memory_remove_break_instruction (uint32_t address, uint32_t *buffer)
 {
-  uint32 oldAttr;
-  APTR stack;
+	uint32 oldAttr;
+	APTR stack;
 
-  /* Restore the memory contents.  */
-  if (1)
-  {
-  	/* Go supervisor */
-	stack = IExec->SuperState ();
-	  
-  	/* Make sure to unprotect the memory area */
+	/* Go supervisor */
+	stack = IExec->SuperState();
+		
+	/* Make sure to unprotect the memory area */
 	oldAttr = IMMU->GetMemoryAttrs ((APTR)address, 0);
 	IMMU->SetMemoryAttrs ((APTR)address, 4, MEMATTRF_READ_WRITE);
 
-#if 0
-		*(uint32 *)address = *buffer;	//restore old instruction
-#else
-		uint32_t realAddress = (uint32_t)IMMU->GetPhysicalAddress ((APTR)address);
-		if (realAddress == 0x0)
-			realAddress = address;
-		setbreak (realAddress, *buffer);
-#endif
+	uint32_t realAddress = (uint32_t)IMMU->GetPhysicalAddress ((APTR)address);
+	if (realAddress == 0x0)
+		realAddress = address;
+	setbreak (realAddress, *buffer);
+
+	IExec->CacheClearE((APTR)address, 0xffffffff, CACRF_ClearI| CACRF_ClearD);
 
 	/* Set old attributes again */
 	IMMU->SetMemoryAttrs ((APTR)address, 4, oldAttr);
 
-
 	/* Return to old state */
-	if (stack)
-		IExec->UserState(stack);
-  }
-IExec->CacheClearE((APTR)address, 0xffffffff, CACRF_ClearI| CACRF_ClearD);
-//IDOS->Delay(50);
-  return 0;
+	if (stack) IExec->UserState(stack);
+
+	return 0;
 }
 #endif

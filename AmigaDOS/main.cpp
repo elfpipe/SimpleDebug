@@ -198,9 +198,12 @@ int main(int argc, char *argv[])
                 //handler.asmStep();
 				
                 breaks.activate();
+
 				handler.go();
 				handler.wait();
+
                 breaks.suspend();
+
 				exit = handleMessages(port, &handler);
 				break;
 			}
@@ -214,6 +217,7 @@ int main(int argc, char *argv[])
 				cout << "==ASM STEP\n";
 				handler.asmStep();
 				handler.wait();
+
 				exit = handleMessages(port, &handler);
 				break;
 

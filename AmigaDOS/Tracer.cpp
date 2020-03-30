@@ -14,6 +14,7 @@ void Tracer::activate(bool branching) {
     if(hasTraceBit()) {
         setTraceBit();
     } else {
+		cout << "hello\n";
         breaks.insert(context->ip + 4);
         uint32_t baddr = branch();
         if(baddr && branching)
@@ -56,33 +57,33 @@ uint32_t Tracer::branch()
 void Tracer::setTraceBit ()
 {
 	struct ExceptionContext ctx;
-//    cout << "ip: 0x" << (void *)context->ip << "\n";
-	IDebug->ReadTaskContext((struct Task *)process, &ctx, RTCF_STATE);
-    IExec->CacheClearE((APTR)&ctx, sizeof(ctx), CACRF_ClearI| CACRF_ClearD|CACRF_InvalidateD);
 
-    //IDOS->Delay(5);
+ 	IExec->CacheClearE((APTR)&ctx, 0xffffffff, CACRF_ClearI| CACRF_ClearD);
+	IDebug->ReadTaskContext((struct Task *)process, &ctx, RTCF_STATE);
+ 	IExec->CacheClearE((APTR)&ctx, 0xffffffff, CACRF_ClearI| CACRF_ClearD);
+
 	//this is not supported on the sam cpu:
 	ctx.msr |= MSR_TRACE_ENABLE;
-	ctx.ip = context->ip; //we must reset this because of a system oddity
-//    cout << "ip: 0x" << (void *)ctx.ip << "\n";
+
+ 	IExec->CacheClearE((APTR)&ctx, 0xffffffff, CACRF_ClearI| CACRF_ClearD);
 	IDebug->WriteTaskContext((struct Task *)process, &ctx, RTCF_STATE);
-    IExec->CacheClearE((APTR)&ctx, sizeof(ctx), CACRF_ClearI| CACRF_ClearD|CACRF_InvalidateD);
-//    IDOS->Delay(5);
+	IExec->CacheClearE((APTR)&ctx, 0xffffffff, CACRF_ClearI| CACRF_ClearD);
 }
 
 void Tracer::unsetTraceBit ()
 {
 	struct ExceptionContext ctx;
+
+ 	IExec->CacheClearE((APTR)&ctx, 0xffffffff, CACRF_ClearI| CACRF_ClearD);
 	IDebug->ReadTaskContext ((struct Task *)process, &ctx, RTCF_STATE);
-    IExec->CacheClearE((APTR)&ctx, sizeof(ctx), CACRF_ClearI| CACRF_ClearD|CACRF_InvalidateD);
-//    IDOS->Delay(5);
+	IExec->CacheClearE((APTR)&ctx, 0xffffffff, CACRF_ClearI| CACRF_ClearD);
+
 	//this is not supported on the sam cpu:
 	ctx.msr &= ~MSR_TRACE_ENABLE;
-	ctx.ip = context->ip;
-//    cout << "ip: 0x" << (void *)ctx.ip << "\n";
+
+ 	IExec->CacheClearE((APTR)&ctx, 0xffffffff, CACRF_ClearI| CACRF_ClearD);
 	IDebug->WriteTaskContext((struct Task *)process, &ctx, RTCF_STATE);
-    IExec->CacheClearE((APTR)&ctx, sizeof(ctx), CACRF_ClearI| CACRF_ClearD|CACRF_InvalidateD);
-//    IDOS->Delay(5);
+	IExec->CacheClearE((APTR)&ctx, 0xffffffff, CACRF_ClearI| CACRF_ClearD);
 }
 
 bool Tracer::hasTraceBit()
