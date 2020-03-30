@@ -389,12 +389,11 @@ public:
             result += (*it)->toString() + "\n";
         for(vector<Scope *>::iterator it = children.begin(); it != children.end(); it++)
             result += (*it)->toString();
-        return result + "} RBRAC [0x" + patch::toString((void *)end) + " --\n";
+        return result + "} RBRAC [0x" + patch::toString((void *)end) + "] --\n";
     }
 };
 class Function : public Symbol {
 public:
-    uint64_t endAddress;
     struct SLine {
         uint64_t address;
         int line;
@@ -415,11 +414,10 @@ public:
     vector<Symbol *> params;
     vector<Scope *> locals;
     Function(string name, Type *type, uint64_t address)
-    : Symbol(S_Function, name, type, address),
-      endAddress(0)
+    : Symbol(S_Function, name, type, address)
     { }
     string toString() {
-        string result = name + ": FUN [" + patch::toString((void *)address) + " ] of " + (type ? type->toString() : "<n>");
+        string result = name + ": FUN [" + patch::toString((void *)address) + " ] of " + (type ? type->toString() : "<n>") + "\n";
         for(vector<SLine *>::iterator it = lines.begin(); it != lines.end(); it++)
             result += (*it)->toString() + "\n";
         for(vector<Symbol *>::iterator it = params.begin(); it != params.end(); it++)

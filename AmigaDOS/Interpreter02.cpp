@@ -196,7 +196,7 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
             case N_FUN: {
                 function = interpretFun(str, sym->n_value);
                 if(function) {
-                    //function->locals.push_back(scope = new Scope(0, function->address));
+                    function->locals.push_back(scope = new Scope(0, function->address)); //there has to be a scope
                     functions.push_back(function);
                 }
                 break;
@@ -210,16 +210,17 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
                 function->addLine(sym->n_value, sym->n_desc, source);
                 break;
             case N_LBRAC: {
-                Scope *newScope = new Scope(scope, function->address + sym->n_value);
                 if(scope)
-                    scope->children.push_back(scope = newScope);
-                else
-                    function->locals.push_back(scope = newScope);
+                    scope->children.push_back(scope = new Scope(scope, function->address + sym->n_value));
                 break;
             }
             case N_RBRAC:
-                scope->end = function->address + sym->n_value;
-                scope = scope->parent;
+                if(scope) {
+                    scope->end = function->address + sym->n_value;
+                    scope = scope->parent;
+                }
+                if(scope && scope->parent == 0) //hackaround
+                    scope->end = scope->children.size() ? scope->children[0]->end : function->lines.size() ? function->lines[function->lines.size()-1]->address : function->address;
                 break;
             default:
                 break;
