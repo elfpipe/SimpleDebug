@@ -39,12 +39,13 @@ private:
 	bool parentIsAttached;
 
 	static struct MsgPort *port;
+	static uint32_t childSignal;
 
 private:
 	static ULONG amigaos_debug_callback (struct Hook *hook, struct Task *currentTask, struct KernelDebugMessage *dbgmsg);
 
 public:
-	AmigaDOSProcess(struct MsgPort *port) { this->port = port; }
+	AmigaDOSProcess(struct MsgPort *port) { this->port = port; this->childSignal = 1 << port->mp_SigBit; }
 
     void init();
     void cleanup();
@@ -67,7 +68,8 @@ public:
 	static uint32 ip () { return context.ip; }
 
     void go();
-    void waitChild();
+    void wait();
+	void wakeUp();
 
 	bool hasTraceBit();
 };

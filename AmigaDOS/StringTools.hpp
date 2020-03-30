@@ -12,12 +12,8 @@ using namespace std;
 
 #define MAX_CHAR_BUFFER_SIZE 4096
 
-vector<string> splitString(const string& str, const string& delim);
 string printStringFormat (const char *format, ...);
-string printStringFormat_helper (const char *format, va_list arg);
-string getStringUntil (char *input, char stopChar);
-char *skip_in_string (char *source, const char *pattern);
-char *skip_numbers (char *strptr);
+//string printStringFormat_helper (const char *format, va_list arg);
 namespace patch {
 template <typename T>
 inline string toString(T a)

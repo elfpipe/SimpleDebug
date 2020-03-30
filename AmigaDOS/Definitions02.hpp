@@ -90,11 +90,11 @@ public:
 class Range : public Type {
 public:
     typedef enum {
-        R_Integer,
+        R_VeryLarge,
         R_Float32,
         R_Float64,
         R_Float128,
-        R_Complex,
+        R_Complex8,
         R_Complex16,
         R_Complex32,
         R_Defined
@@ -108,17 +108,13 @@ public:
         char c = str.get();
         if(c == 'r') {
             TypeNo newNo(str);
-            //if(!(newNo == no)) panic;
-            /*if(str.peek() == '=') {
-                TypeNo temp(str); //swallow
-            }*/
             str.peekSkip(';');
             lower = str.getInt();
             str.peekSkip(';');
             upper = str.getInt();
             str.peekSkip(';');
             if(lower == 0 && upper == -1) {
-                rangeType = R_Integer;
+                rangeType = R_VeryLarge;
                 lower = 0;
                 upper = UINT_MAX;
             } else if (upper == 0) {
@@ -147,7 +143,7 @@ public:
                     rangeType = R_Float64;
                     break;
                 case 3: //NF_COMPLEX
-                    rangeType = R_Complex;
+                    rangeType = R_Complex8;
                     break;
                 case 4: //NF_COMPLEX16
                     rangeType = R_Complex16;
@@ -159,23 +155,23 @@ public:
                     rangeType = R_Float128;
                     break;
             }
-            if(bytes == 16 && rangeType == R_Complex)
+            if(bytes == 16 && rangeType == R_Complex8)
                 rangeType = R_Complex16;
-            if(bytes == 32 && rangeType == R_Complex)
+            if(bytes == 32 && rangeType == R_Complex8)
                 rangeType = R_Complex32;
         }
     }
     uint32_t byteSize() {
         switch(rangeType) {
-            case R_Integer:
-                return sizeof(int);
+            case R_VeryLarge:
+                return sizeof(unsigned long long);
             case R_Float32:
                 return 4;
             case R_Float64:
                 return 8;
             case R_Float128:
                 return 16;
-            case R_Complex:
+            case R_Complex8:
                 return 8;
             case R_Complex16:
                 return 16;
@@ -188,6 +184,8 @@ public:
                     return 2;
                 else if (upper <= 4294967295)
                     return 4;
+                else if (upper <= 0xffffffffffffffff)
+                    return 8;
             default:
                 return 0;
         }
@@ -195,8 +193,8 @@ public:
     string toString() {
         string result("r" + no.toString() + " : ");
         switch(rangeType) {
-            case R_Integer:
-                result += "<Integer>";
+            case R_VeryLarge:
+                result += "<VeryLarge>";
                 break;
             case R_Float32:
                 result += "<Float32>";
@@ -207,8 +205,8 @@ public:
             case R_Float128:
                 result += "<Float128>";
                 break;
-            case R_Complex:
-                result += "<Complex>";
+            case R_Complex8:
+                result += "<Complex8>";
                 break;
             case R_Complex16:
                 result += "<Complex16>";
@@ -223,7 +221,6 @@ public:
         return result; // + patch::toString((unsigned int)byteSize());
     }
 };
-Type *InterpretType(Type::TypeNo no, astream &str);
 class Array : public Type {
 public:
     Range *range;
@@ -387,12 +384,12 @@ public:
     vector<Scope *> children;
     Scope(Scope *parent, uint64_t begin) { this->parent = parent; this->begin = begin; }
     string toString() {
-        string result = "LBRAC: -- {\n";
+        string result = "LBRAC [0x" + patch::toString((void *)begin) + "] -- {\n";
         for(vector<Symbol *>::iterator it = symbols.begin(); it != symbols.end(); it++)
             result += (*it)->toString() + "\n";
         for(vector<Scope *>::iterator it = children.begin(); it != children.end(); it++)
             result += (*it)->toString();
-        return result + "} RBRAC --\n";
+        return result + "} RBRAC [0x" + patch::toString((void *)end) + " --\n";
     }
 };
 class Function : public Symbol {

@@ -93,8 +93,10 @@ Type *SourceObject::interpretType(Type::TypeNo no, astream &str) {
             if(iNo.equals(no)) {
                 type = new Void(no);
             } else {
-                Type *iType = interpretType(iNo, str);
-                type = new Ref(iNo, iType);
+                Type *iType = findType(iNo);
+                if(!iType)
+                    iType = interpretType(iNo, str);
+                type = new Ref(no, iType);
             }
             break;
         }
@@ -157,7 +159,7 @@ Function *SourceObject::interpretFun(astream &str, uint64_t address) {
 }
 SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *stabstr, uint64_t stabsize) {
     astream temp("r(0,0);0;-1;");
-    types.push_back((Type *)new Range(Type::TypeNo(0, 0), temp));
+    addType(new Range(Type::TypeNo(0, 0), temp));
 
     SymtabEntry *sym = *_sym;
     name = string(stabstr + sym->n_strx);
@@ -194,7 +196,7 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
             case N_FUN: {
                 function = interpretFun(str, sym->n_value);
                 if(function) {
-                    function->locals.push_back(new Scope(0, function->address));
+                    //function->locals.push_back(scope = new Scope(0, function->address));
                     functions.push_back(function);
                 }
                 break;
@@ -207,9 +209,14 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
             case N_SLINE:
                 function->addLine(sym->n_value, sym->n_desc, source);
                 break;
-            case N_LBRAC:
-                scope->children.push_back(scope = new Scope(scope, function->address + sym->n_value));
+            case N_LBRAC: {
+                Scope *newScope = new Scope(scope, function->address + sym->n_value);
+                if(scope)
+                    scope->children.push_back(scope = newScope);
+                else
+                    function->locals.push_back(scope = newScope);
                 break;
+            }
             case N_RBRAC:
                 scope->end = function->address + sym->n_value;
                 scope = scope->parent;

@@ -3,6 +3,7 @@
 #include <proto/elf.h>
 
 #include "Process.hpp"
+#include "Tracer.hpp"
 
 #include <string>
 #include <vector>
@@ -258,28 +259,6 @@ void AmigaDOSProcess::writeTaskContext ()
 	IDebug->WriteTaskContext ((struct Task *)child, &context, RTCF_SPECIAL|RTCF_STATE|RTCF_VECTOR|RTCF_FPU);
 }
 
-#define    MSR_TRACE_ENABLE           0x00000400
-
-void AmigaDOSProcess::setTraceBit ()
-{
-	struct ExceptionContext ctx;
-	IDebug->ReadTaskContext((struct Task *)child, &ctx, RTCF_STATE);
-	//this is not supported on the sam cpu:
-	ctx.msr |= MSR_TRACE_ENABLE;
-	ctx.ip = ip(); //we must reset this because of a system oddity
-	IDebug->WriteTaskContext((struct Task *)child, &ctx, RTCF_STATE);
-}
-
-void AmigaDOSProcess::unsetTraceBit ()
-{
-	struct ExceptionContext ctx;
-	IDebug->ReadTaskContext ((struct Task *)child, &ctx, RTCF_STATE);
-	//this is not supported on the sam cpu:
-	ctx.msr &= ~MSR_TRACE_ENABLE;
-	ctx.ip = ip();
-	IDebug->WriteTaskContext((struct Task *)child, &ctx, RTCF_STATE);
-}
-
 // ------------------------------------------------------------------ //
 
 // asmSkip/Step/NoBranch
@@ -291,15 +270,15 @@ void AmigaDOSProcess::asmSkip() {
 	IDebug->WriteTaskContext((struct Task *)child, &context, RTCF_STATE);
 }
 
-
 void AmigaDOSProcess::asmStep()
 {
-	setTraceBit();
+	Tracer tracer(child, &context);
+	tracer.activate();
 	go();
-	IDOS->Delay(1);
-	unsetTraceBit();
+	wait();
+	tracer.suspend();
+	wakeUp();
 }
-
 
 // --------------------------------------------------------------------------- //
 
@@ -308,21 +287,17 @@ void AmigaDOSProcess::go()
     IExec->RestartTask((struct Task *)child, 0);
 }
 
-void AmigaDOSProcess::waitChild()
+void AmigaDOSProcess::wait()
 {
-    IExec->Wait(SIGF_CHILD);
+    //IExec->Wait(SIGF_CHILD);
+	IExec->Wait(childSignal);
 }
 
+void AmigaDOSProcess::wakeUp()
+{
+	IExec->Signal(childSignal);
+}
 // ---------------------------------------------------------------------------- //
-
-bool AmigaDOSProcess::hasTraceBit()
-{
-	uint32 family;
-	IExec->GetCPUInfoTags(GCIT_Family, &family, TAG_DONE);
-	if (family == CPUFAMILY_4XX)
-		return false;
-	return true;
-}
 
 #if 0
 uint32 symbolQuery(APTR handle, const char *name)

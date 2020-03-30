@@ -2,7 +2,6 @@
 #include "Process.hpp"
 #include "Breaks.hpp"
 
-//#include "Interpreter.hpp"
 #include "Definitions02.hpp"
 #include "ElfHandle.hpp"
 
@@ -98,8 +97,6 @@ int main(int argc, char *argv[])
     OSSymbols symbols;
     Breaks breaks;
 
-//	StabsInterpreter interpreter;
-
 	ElfHandle *elfHandle = 0;
 	Binary *binary = 0;
 
@@ -128,7 +125,6 @@ int main(int argc, char *argv[])
 						elfHandle->performRelocation();
 
 						binary = new Binary(elfHandle->getName(), (SymtabEntry *)elfHandle->getStabSection(), elfHandle->getStabstrSection(), elfHandle->getStabsSize());
-						//interpreter.loadModule(elfHandle);
 					}
 				}
 				if(args.size() < 2)
@@ -146,7 +142,9 @@ int main(int argc, char *argv[])
                         symbols.readAll(handle);
 
 						elfHandle = new ElfHandle(handle, args[1].c_str(), false);
-						//interpreter.loadModule(elfHandle);
+						elfHandle->performRelocation();
+
+						binary = new Binary(elfHandle->getName(), (SymtabEntry *)elfHandle->getStabSection(), elfHandle->getStabstrSection(), elfHandle->getStabsSize());
                     }
 				}
 			}
@@ -159,12 +157,14 @@ int main(int argc, char *argv[])
 			case 'b':
 				if(args.size() < 2) {
 					cout << "Too few arguments";
-				} else {
+				} else if(args.size() == 2) {
                     uint32 address = symbols.valueOf(args[1].c_str());
 					if(address) {
                         cout << "BREAK " << (void *)address << "\n";
 						breaks.insert(address);
                     }
+				} else {
+					Function::SLine *line = binary->find(args[1].c_str(), );
 				}
 				break;
 
@@ -194,20 +194,10 @@ int main(int argc, char *argv[])
                 break;
 
 			case 'p':
-				cout << "--Stabs:--\n";
+				cout << "--Binary structure:--\n";
 				cout << binary->toString();
-				//cout << interpreter.printable();
-				//printSyms();
 				break;
 			
-			case 'z': {
-				cout << "--Symtabs:--\n";
-				// StabsModule *module = interpreter.moduleFromName(elfHandle->getName());
-				// if(module) {
-				// 	cout << module->symtabsPrintable();
-				// }
-				break;
-			}
 			case 't':
 				handler.setTraceBit();
                 cout << "TRACE bit set\n";
@@ -251,7 +241,7 @@ int main(int argc, char *argv[])
 				cout << "c: clear break\n";
 				cout << "i: print ip\n";
 				cout << "o: print os symbol list\n";
-                cout << "p: print symbol list\n";
+                cout << "p: print binary structure\n";
 				cout << "q: quit debugger\n";
 				break;
 
