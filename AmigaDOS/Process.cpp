@@ -13,6 +13,7 @@ using namespace std;
 
 ExceptionContext AmigaDOSProcess::context;
 struct MsgPort *AmigaDOSProcess::port;
+uint32_t AmigaDOSProcess::childSignal = 0x0;
 
 struct DebugIFace *IDebug = 0;
 struct MMUIFace *IMMU = 0;
@@ -295,7 +296,7 @@ void AmigaDOSProcess::wait()
 
 void AmigaDOSProcess::wakeUp()
 {
-	IExec->Signal(childSignal);
+	IExec->Signal((struct Task *)child, childSignal);
 }
 // ---------------------------------------------------------------------------- //
 

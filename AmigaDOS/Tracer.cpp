@@ -3,8 +3,6 @@
 #include "Tracer.hpp"
 #include "LowLevel.hpp"
 
-#include <cstdint>
-
 Tracer::Tracer(Process *process, ExceptionContext *context) {
     this->process = process;
     this->context = context;
@@ -15,7 +13,7 @@ void Tracer::activate(bool branching) {
         setTraceBit();
     } else {
         breaks.insert(context->ip + 4);
-        uint32_t baddr = branchAddress();
+        uint32_t baddr = branch();
         if(baddr && branching)
             breaks.insert(baddr);
         breaks.activate();
@@ -31,7 +29,7 @@ void Tracer::suspend() {
     }
 }
 
-uint32_t Tracer::branchAddress()
+uint32_t Tracer::branch()
 {
 	int32 offset;
 	switch(PPC_DisassembleBranchInstr(*(uint32 *)context->ip, &offset))

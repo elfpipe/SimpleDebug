@@ -3,13 +3,15 @@
 
 #include <proto/dos.h>
 #include "Breaks.hpp"
+#include <stdint.h>
+
 class Tracer {
 private:
     Breaks breaks;
     Process *process;
     ExceptionContext *context;
 private:
-    uint32_t branchAddress();
+    uint32_t branch();
 
     void setTraceBit();
     void unsetTraceBit();

@@ -164,7 +164,7 @@ int main(int argc, char *argv[])
 						breaks.insert(address);
                     }
 				} else {
-					Function::SLine *line = binary->find(args[1].c_str(), );
+					//Function::SLine *line = binary->find(args[1].c_str(), );
 				}
 				break;
 
@@ -198,16 +198,6 @@ int main(int argc, char *argv[])
 				cout << binary->toString();
 				break;
 			
-			case 't':
-				handler.setTraceBit();
-                cout << "TRACE bit set\n";
-				break;
-
-			case 'u':
-				handler.unsetTraceBit();
-                cout << "TRACE bit unset\n";
-				break;
-
 			case 's': {
                 handler.asmStep();
                 breaks.activate();
@@ -223,6 +213,11 @@ int main(int argc, char *argv[])
 				handler.asmSkip();
 				break;
 
+			case 't':
+				cout << "==ASM STEP\n";
+				handler.asmStep();
+				break;
+
 			case 'q':
 				exit = true;
 				break;
@@ -234,8 +229,7 @@ int main(int argc, char *argv[])
 				cout << "d: detach from child\n";
 				cout << "s: start execution\n";
 				cout << "k: skip instruction\n";
-				cout << "t: set trace bit\n";
-				cout << "u: unset trace bit\n";
+				cout << "t: asm step\n";
 				cout << "r: read task context\n";
 				cout << "b <symname>: break at symbol\n";
 				cout << "c: clear break\n";

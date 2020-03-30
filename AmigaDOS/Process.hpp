@@ -2,6 +2,7 @@
 #define PROCESSHANDLER_HPP
 
 #include <proto/exec.h>
+#include <stdint.h>
 
 struct KernelDebugMessage
 {
@@ -59,8 +60,6 @@ public:
 
 	void readTaskContext ();
 	void writeTaskContext ();
-	void setTraceBit ();
-	void unsetTraceBit();
 
 	void asmSkip();
 	void asmStep();
@@ -70,7 +69,5 @@ public:
     void go();
     void wait();
 	void wakeUp();
-
-	bool hasTraceBit();
 };
 #endif
