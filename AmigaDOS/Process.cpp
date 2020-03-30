@@ -159,7 +159,7 @@ ULONG AmigaDOSProcess::amigaos_debug_callback (struct Hook *hook, struct Task *c
 			message->type = MSGTYPE_OPENLIB;
 			message->library = dbgmsg->message.library;
 				
-			IExec->PutMsg(port, (struct Message *)message);
+//			IExec->PutMsg(port, (struct Message *)message);
 			
 		}
 		break;
@@ -174,7 +174,7 @@ ULONG AmigaDOSProcess::amigaos_debug_callback (struct Hook *hook, struct Task *c
 			message->type = MSGTYPE_CLOSELIB;
 			message->library = dbgmsg->message.library;
 				
-			IExec->PutMsg(port, (struct Message *)message);
+//			IExec->PutMsg(port, (struct Message *)message);
 		}
 		break;
 
@@ -276,6 +276,7 @@ void AmigaDOSProcess::asmStep()
 	Tracer tracer(child, &context);
 	tracer.activate();
 	go();
+	wait();
 	tracer.suspend();
 }
 

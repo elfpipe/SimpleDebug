@@ -13,6 +13,8 @@
 #include <vector>
 #include <string.h>
 
+#include <proto/dos.h>
+
 using namespace std;
 
 template <class Container>
@@ -195,8 +197,10 @@ int main(int argc, char *argv[])
 				break;
 			
 			case 's': {
-                //handler.asmStep();
-				
+                handler.asmStep();
+				//IDOS->Delay(50);
+				exit = handleMessages(port, &handler);
+
                 breaks.activate();
 
 				handler.go();
@@ -216,7 +220,6 @@ int main(int argc, char *argv[])
 			case 'z':
 				cout << "==ASM STEP\n";
 				handler.asmStep();
-				handler.wait();
 
 				exit = handleMessages(port, &handler);
 				break;
