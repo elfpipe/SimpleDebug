@@ -1,9 +1,9 @@
-#include "OSSymbols.hpp"
+#include "Symbols.hpp"
 #include "Process.hpp"
 #include "Breaks.hpp"
 
-#include "Definitions02.hpp"
-#include "ElfHandle.hpp"
+#include "Binary.hpp"
+#include "Handle.hpp"
 
 #include <iostream>
 #include <sstream>

@@ -5,7 +5,7 @@
 //
 
 #include <proto/elf.h>
-#include "OSSymbols.hpp"
+#include "Symbols.hpp"
 
 #include <sstream>
 #include <string>
@@ -71,22 +71,3 @@ string OSSymbols::printable() {
         str << (*it)->name << ": 0x" << (void *)(*it)->value << "\n";
     return str.str();
 }
-
-#if 0
-void OSSymbols::dummy(APTR handle) //32_Handle elfhandle)
-{
-	IElf->OpenElfTags(OET_ReadOnlyCopy, TRUE, OET_ElfHandle, handle, TAG_DONE);
-
-	struct Elf32_SymbolQuery query;
-	STRPTR tempBuffer = (char *)"(dummy)";
-    
-	query.Flags      = ELF32_SQ_BYNAME | ELF32_SQ_LOAD;
-	query.Name       = tempBuffer;
-	query.NameLength = strlen((const char *)tempBuffer);
-	query.Value      = 0;
-
-	/*uint32 queryres =*/ IElf->SymbolQuery((Elf32_Handle)handle, 1, &query);
-
-    IElf->CloseElfTags((Elf32_Handle)handle, CET_ReClose, FALSE, TAG_DONE);
-}
-#endif

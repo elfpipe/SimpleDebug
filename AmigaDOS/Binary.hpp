@@ -1,7 +1,7 @@
 #ifndef DEFINITIONS02_HPP
 #define DEFINITIONS02_HPP
 
-#include "StringTools.hpp"
+#include "Strings.hpp"
 #include "symtabs.h"
 
 #include <string>

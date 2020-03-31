@@ -2,7 +2,7 @@
 #include <string>
 #include <sstream>
 
-#include "StringTools.hpp"
+#include "Strings.hpp"
 
 using namespace std;
 

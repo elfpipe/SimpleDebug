@@ -4,13 +4,13 @@ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 IF(AMIGA)
     set(SOURCES
         AmigaDOS/main.cpp
-        AmigaDOS/OSSymbols.cpp
+        AmigaDOS/Symbols.cpp
         AmigaDOS/Process.cpp
         AmigaDOS/Breaks.cpp
         AmigaDOS/LowLevel.cpp
-        AmigaDOS/ElfHandle.cpp
-        AmigaDOS/Interpreter02.cpp
-        AmigaDOS/StringTools.cpp
+        AmigaDOS/Handle.cpp
+        AmigaDOS/Binary.cpp
+        AmigaDOS/Strings.cpp
         AmigaDOS/Tracer.cpp
     )
 

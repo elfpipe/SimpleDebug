@@ -1,4 +1,4 @@
-#include "ElfHandle.hpp"
+#include "Handle.hpp"
 
 ElfHandle::ElfHandle (APTR handle, string name, bool isOpen) {
     this->name = name;
