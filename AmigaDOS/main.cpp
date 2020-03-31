@@ -102,8 +102,6 @@ int main(int argc, char *argv[])
 	ElfHandle *elfHandle = 0;
 	Binary *binary = 0;
 
-	handler.init();
-
 	bool exit = false;
 	while(!exit) {
 		vector<string> args = getInput();
@@ -198,13 +196,12 @@ int main(int argc, char *argv[])
 			
 			case 's': {
                 handler.asmStep();
-				//IDOS->Delay(50);
 				exit = handleMessages(port, &handler);
 
                 breaks.activate();
 
 				handler.go();
-				handler.wait();
+				handler.waitTrap();
 
                 breaks.suspend();
 
@@ -250,13 +247,11 @@ int main(int argc, char *argv[])
 
 			default:
 				break;
-
 		}
 	}
-
 	handleMessages(port, &handler);
 
-	handler.cleanup();
+//	handler.cleanup();
 	IExec->FreeSysObject(ASOT_PORT, port);
 
     return 0;

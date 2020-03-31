@@ -31,6 +31,15 @@ public:
 		struct Library *library;
 	};
 
+	struct HookData {
+		struct Task *caller;
+		int8_t signal;
+		HookData(struct Task *caller, int8_t signal) {
+			this->caller = caller;
+			this->signal = signal;
+		}
+	};
+
 private:
     struct Process *child;
 	struct Hook hook;
@@ -40,13 +49,14 @@ private:
 	bool parentIsAttached;
 
 	static struct MsgPort *port;
-	static uint32_t childSignal;
+	static uint8_t trapSignal;
 
 private:
 	static ULONG amigaos_debug_callback (struct Hook *hook, struct Task *currentTask, struct KernelDebugMessage *dbgmsg);
 
 public:
-	AmigaDOSProcess(struct MsgPort *port) { this->port = port; this->childSignal = 1 << port->mp_SigBit; }
+	AmigaDOSProcess(struct MsgPort *port) { this->port = port; init(); }
+	~AmigaDOSProcess() { cleanup(); }
 
     void init();
     void cleanup();
@@ -67,7 +77,8 @@ public:
 	static uint32 ip () { return context.ip; }
 
     void go();
-    void wait();
+    void waitPort();
+	void waitTrap();
 	void wakeUp();
 };
 #endif

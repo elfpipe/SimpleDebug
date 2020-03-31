@@ -13,7 +13,7 @@ using namespace std;
 
 ExceptionContext AmigaDOSProcess::context;
 struct MsgPort *AmigaDOSProcess::port;
-uint32_t AmigaDOSProcess::childSignal = 0x0;
+uint8_t AmigaDOSProcess::trapSignal = 0x0;
 
 struct DebugIFace *IDebug = 0;
 struct MMUIFace *IMMU = 0;
@@ -29,6 +29,8 @@ void AmigaDOSProcess::init ()
 	if (!IMMU) {
 		return;
 	}
+
+	trapSignal = IExec->AllocSignal(-1);
 }
 
 void AmigaDOSProcess::cleanup ()
@@ -40,6 +42,8 @@ void AmigaDOSProcess::cleanup ()
 	if (IMMU)
 		IExec->DropInterface((struct Interface *)IMMU);
 	IMMU = 0;
+
+	IExec->FreeSignal(trapSignal);
 }
 
 APTR AmigaDOSProcess::loadChildProcess (const char *path, const char *command, const char *arguments)
@@ -106,8 +110,12 @@ ULONG AmigaDOSProcess::amigaos_debug_callback (struct Hook *hook, struct Task *c
 {
 
     struct ExecIFace *IExec = (struct ExecIFace *)((struct ExecBase *)SysBase)->MainInterface;
-
 	uint32 traptype = 0;
+
+	HookData *data = (HookData *)hook->h_Data;
+	bool sendSignal = false;
+
+	ULONG ret = 0;
 
 	/* these are the 4 types of debug msgs: */
 	switch (dbgmsg->type)
@@ -122,6 +130,7 @@ ULONG AmigaDOSProcess::amigaos_debug_callback (struct Hook *hook, struct Task *c
 			message->type = MSGTYPE_CHILDDIED;
 			
 			IExec->PutMsg (port, (struct Message *)message);
+			sendSignal = true;  //if process has ended, we must signal caller
 
 			break;
 		}
@@ -139,15 +148,20 @@ ULONG AmigaDOSProcess::amigaos_debug_callback (struct Hook *hook, struct Task *c
 				TAG_DONE
 			);
 			
-			if (traptype == 0x700 || traptype == 0xd00)
+			if (traptype == 0x700 || traptype == 0xd00) {
 				message->type = MSGTYPE_TRAP;
-			else
+				sendSignal = true; //it's a trap
+			} else {
 				message->type = MSGTYPE_EXCEPTION;
-			
+			}
+
 			IExec->PutMsg (port, (struct Message *)message);
-			
+
+			sendSignal = true;
+
 			// returning 1 will suspend the task
-			return 1;
+			ret = 1;
+			break;
 		}
 		case DBHMT_OPENLIB: {
 			//IDOS->Printf("OPENLIB\n");
@@ -159,8 +173,7 @@ ULONG AmigaDOSProcess::amigaos_debug_callback (struct Hook *hook, struct Task *c
 			message->type = MSGTYPE_OPENLIB;
 			message->library = dbgmsg->message.library;
 				
-//			IExec->PutMsg(port, (struct Message *)message);
-			
+			IExec->PutMsg(port, (struct Message *)message);			
 		}
 		break;
 
@@ -174,25 +187,30 @@ ULONG AmigaDOSProcess::amigaos_debug_callback (struct Hook *hook, struct Task *c
 			message->type = MSGTYPE_CLOSELIB;
 			message->library = dbgmsg->message.library;
 				
-//			IExec->PutMsg(port, (struct Message *)message);
+			IExec->PutMsg(port, (struct Message *)message);
 		}
 		break;
 
 		default:
 			break;
 	}
-	return 0;
+
+	if(sendSignal) IExec->Signal(data->caller, 1 << data->signal);
+
+	return ret;
 }
 
-void AmigaDOSProcess::hookOn ()
-{	
+void AmigaDOSProcess::hookOn()
+{
+	struct HookData *data = new HookData(IExec->FindTask(0), trapSignal);
+
     hook.h_Entry = (ULONG (*)())amigaos_debug_callback;
-    hook.h_Data =  0; //(APTR)&_hookData;
+    hook.h_Data =  (APTR)data;
 
 	IDebug->AddDebugHook((struct Task *)child, &hook);
 }
 
-void AmigaDOSProcess::hookOff ()
+void AmigaDOSProcess::hookOff()
 {
 	IDebug->AddDebugHook((struct Task*)child, 0);
 	child = 0;
@@ -276,7 +294,7 @@ void AmigaDOSProcess::asmStep()
 	Tracer tracer(child, &context);
 	tracer.activate();
 	go();
-	wait();
+	waitTrap();
 	tracer.suspend();
 }
 
@@ -287,15 +305,19 @@ void AmigaDOSProcess::go()
     IExec->RestartTask((struct Task *)child, 0);
 }
 
-void AmigaDOSProcess::wait()
+void AmigaDOSProcess::waitTrap()
 {
-    //IExec->Wait(SIGF_CHILD);
-	IExec->Wait(childSignal);
+	IExec->Wait(1 << trapSignal);
+}
+
+void AmigaDOSProcess::waitPort()
+{
+	IExec->WaitPort(port);
 }
 
 void AmigaDOSProcess::wakeUp()
 {
-	IExec->Signal((struct Task *)IExec->FindTask(0), childSignal);
+	IExec->Signal((struct Task *)IExec->FindTask(0), trapSignal);
 }
 // ---------------------------------------------------------------------------- //
 
