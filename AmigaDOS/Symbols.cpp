@@ -15,25 +15,25 @@ using namespace std;
 
 ULONG amigaos_symbols_callback(struct Hook *hook, struct Task *task, struct SymbolMsg *symbolmsg) {
 	if (symbolmsg->Name) {
-		OSSymbols *nativeSymbols = (OSSymbols *)hook->h_Data;
-		nativeSymbols->addSymbol (string ((const char *)symbolmsg->Name), symbolmsg->AbsValue);
+		ElfSymbols *symbols = (ElfSymbols *)hook->h_Data;
+		symbols->addSymbol (string ((const char *)symbolmsg->Name), symbolmsg->AbsValue);
 	}
 	return 1;
 }
 
-OSSymbols::OSSymbols() {
+ElfSymbols::ElfSymbols() {
 }
 
-OSSymbols::~OSSymbols() {
+ElfSymbols::~ElfSymbols() {
 	clear ();
 }
 
-void OSSymbols::clear() {
-	for (list<OSSymbol *>::iterator it = symbols.begin (); it != symbols.end (); it++)
+void ElfSymbols::clear() {
+	for (list<ElfSymbol *>::iterator it = symbols.begin (); it != symbols.end (); it++)
 		delete (*it);
 }
 
-void OSSymbols::readAll(APTR handle) {
+void ElfSymbols::readAll(APTR handle) {
 	IElf->OpenElfTags(OET_ElfHandle, handle, TAG_DONE);
 	
 	struct Hook hook;
@@ -43,31 +43,34 @@ void OSSymbols::readAll(APTR handle) {
 	IElf->ScanSymbolTable((Elf32_Handle)handle, &hook, NULL);
 
 //    IElf->CloseElfTags((Elf32_Handle)handle, CET_ReClose, FALSE, TAG_DONE);
-	symbolsLoaded = true;
+	loaded = true;
 }
 
-void OSSymbols::addSymbol(string name, uint32 value) {
-	OSSymbol *symbol = new OSSymbol(name, value);
+void ElfSymbols::addSymbol(string name, uint32 value) {
+	ElfSymbol *symbol = new ElfSymbol(name, value);
 	symbols.push_back(symbol);
 }
 
-uint32 OSSymbols::valueOf (string name) {
-	for (list <OSSymbol *>::iterator it = symbols.begin (); it != symbols.end (); it++)
+uint32 ElfSymbols::valueOf (string name) {
+	for (list <ElfSymbol *>::iterator it = symbols.begin (); it != symbols.end (); it++)
 		if (!(*it)->name.compare(name))
 			return (*it)->value;
 	return 0; //we should at least throw something in this case ??
 }
 
-string OSSymbols::nameFromValue(uint32 value) {
-	for (list <OSSymbol *>::iterator it = symbols.begin (); it != symbols.end (); it++)
+string ElfSymbols::nameFromValue(uint32 value) {
+	for (list <ElfSymbol *>::iterator it = symbols.begin (); it != symbols.end (); it++)
 		if ((*it)->value == value)
 			return (*it)->name;
 	return string(); //throw something in this case too ??
 }
 
-string OSSymbols::printable() {
-    stringstream str;
-	for (list<OSSymbol *>::iterator it = symbols.begin (); it != symbols.end (); it++)
+vector<string> ElfSymbols::printable(){
+    vector<string> result;
+	for (list<ElfSymbol *>::iterator it = symbols.begin (); it != symbols.end (); it++) {
+		stringstream str;
         str << (*it)->name << ": 0x" << (void *)(*it)->value << "\n";
-    return str.str();
+		result.push_back(str.str());
+	}
+	return result;
 }

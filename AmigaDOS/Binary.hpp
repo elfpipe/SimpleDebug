@@ -453,6 +453,7 @@ public:
     Type *interpretType(Type::TypeNo no, astream &str);
     Symbol *interpretSymbol(astream &str, uint64_t address);
     Function *interpretFun(astream &str, uint64_t address);
+    vector<string> getSourceNames(); 
     string toString();
 };
 class Binary {
@@ -464,6 +465,7 @@ public:
     vector<SourceObject *> objects;
 public:
     Binary(string name, SymtabEntry *stab, const char *stabstr, uint64_t stabsize);
+    vector<string> getSourceNames();
     string toString();
 };
 #endif //DEFINITIONS_HPP

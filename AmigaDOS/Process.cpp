@@ -8,17 +8,18 @@
 #include <string>
 #include <vector>
 #include <string.h>
+#include <iostream>
 
 using namespace std;
 
 ExceptionContext AmigaDOSProcess::context;
-struct MsgPort *AmigaDOSProcess::port;
-uint8_t AmigaDOSProcess::trapSignal = 0x0;
+struct MsgPort *AmigaDOSProcess::port = 0;
+uint8_t AmigaDOSProcess::signal = 0x0;
 
 struct DebugIFace *IDebug = 0;
 struct MMUIFace *IMMU = 0;
 
-void AmigaDOSProcess::init ()
+void AmigaDOSProcess::init()
 {
 	IDebug = (struct DebugIFace *)IExec->GetInterface ((struct Library *)SysBase, "debug", 1, 0);
 	if (!IDebug) {
@@ -29,8 +30,9 @@ void AmigaDOSProcess::init ()
 	if (!IMMU) {
 		return;
 	}
-
-	trapSignal = IExec->AllocSignal(-1);
+	if(!port)
+		port = (struct MsgPort *)IExec->AllocSysObject(ASOT_PORT, TAG_DONE);
+	signal = IExec->AllocSignal(-1);
 }
 
 void AmigaDOSProcess::cleanup ()
@@ -43,18 +45,18 @@ void AmigaDOSProcess::cleanup ()
 		IExec->DropInterface((struct Interface *)IMMU);
 	IMMU = 0;
 
-	IExec->FreeSignal(trapSignal);
+	IExec->FreeSignal(signal);
 }
 
-APTR AmigaDOSProcess::loadChildProcess (const char *path, const char *command, const char *arguments)
+APTR AmigaDOSProcess::load(string path, string command, string arguments)
 {
-	BPTR lock = IDOS->Lock (path, SHARED_LOCK);
+	BPTR lock = IDOS->Lock(path.c_str(), SHARED_LOCK);
 	if (!lock) {
 		return 0;
 	}
 	BPTR homelock = IDOS->DupLock (lock);
 
-	BPTR seglist = IDOS->LoadSeg (command);
+	BPTR seglist = IDOS->LoadSeg (command.c_str());
 	
 	if (!seglist) {
 		IDOS->UnLock(lock);
@@ -63,36 +65,36 @@ APTR AmigaDOSProcess::loadChildProcess (const char *path, const char *command, c
 
 	IExec->Forbid(); //can we avoid this?
 
-    child = IDOS->CreateNewProcTags(
+    process = IDOS->CreateNewProcTags(
 		NP_Seglist,					seglist,
 //		NP_Entry,					foo,
 		NP_FreeSeglist,				TRUE,
-		NP_Name,					command,
+		NP_Name,					strdup(command.c_str()),
 		NP_CurrentDir,				lock,
 		NP_ProgramDir,				homelock,
 		NP_StackSize,				2000000,
 		NP_Cli,						TRUE,
 		NP_Child,					TRUE,
-		NP_Arguments,				arguments,
+		NP_Arguments,				arguments.c_str(),
 		NP_Input,					IDOS->Input(),
 		NP_CloseInput,				FALSE,
 		NP_Output,					IDOS->Output(), //pipe_get_write_end(),
 		NP_CloseOutput,				FALSE,
 		NP_Error,					IDOS->ErrorOutput(),
 		NP_CloseError,				FALSE,
-		NP_NotifyOnDeathSigTask,	IExec->FindTask(NULL),
+		NP_NotifyOnDeathSigTask,	IExec->FindTask(0),
 		TAG_DONE
 	);
 
-	if (!child) {
+	if (!process) {
 		IExec->Permit();
 		return 0;
 	} else {
-		IExec->SuspendTask ((struct Task *)child, 0L);		
-		childExists = true;
+		IExec->SuspendTask ((struct Task *)process, 0L);		
+		exists = true;
 
 		hookOn();
-		readTaskContext();
+		readContext();
 		IExec->Permit();
 	}
 
@@ -207,20 +209,55 @@ void AmigaDOSProcess::hookOn()
     hook.h_Entry = (ULONG (*)())amigaos_debug_callback;
     hook.h_Data =  (APTR)data;
 
-	IDebug->AddDebugHook((struct Task *)child, &hook);
+	IDebug->AddDebugHook((struct Task *)process, &hook);
 }
 
 void AmigaDOSProcess::hookOff()
 {
-	IDebug->AddDebugHook((struct Task*)child, 0);
-	child = 0;
+	IDebug->AddDebugHook((struct Task*)process, 0);
 }
 
-APTR AmigaDOSProcess::attachToProcess (const char *name)
-{
-	struct Process *process = (struct Process *)IExec->FindTask(name);
-	if(!process) return 0;
+bool AmigaDOSProcess::handleMessages() {
+	bool exit = false;
+	DebugMessage *message = (DebugMessage *)IExec->GetMsg(port);
+	while(message) {
+		switch(message->type) {
+			case AmigaDOSProcess::MSGTYPE_EXCEPTION:
+				cout << "==EXCEPTION (ip = 0x" << (void *)ip() << ")\n";
+				break;
 
+			case AmigaDOSProcess::MSGTYPE_TRAP:
+				cout << "==TRAP (ip = 0x" << (void *)ip() << ")\n";
+				break;
+
+			case AmigaDOSProcess::MSGTYPE_CRASH:
+				cout << "==CRASH (ip = 0x" << (void *)ip() << ")\n";
+				break;
+
+			case AmigaDOSProcess::MSGTYPE_OPENLIB:
+				cout << "==OPENLIB\n";
+				break;
+
+			case AmigaDOSProcess::MSGTYPE_CLOSELIB:
+				cout << "==CLOSELIB\n";
+				break;
+
+			case AmigaDOSProcess::MSGTYPE_CHILDDIED:
+				cout << "Child has DIED (exit)\n";
+				exit = true;
+				break;
+		}
+		message = (struct AmigaDOSProcess::DebugMessage *)IExec->GetMsg(port);
+	}
+	return exit;
+}
+
+APTR AmigaDOSProcess::attach(string name)
+{
+	struct Process *_process = (struct Process *)IExec->FindTask(name.c_str());
+	if(!_process) return 0;
+
+	process = _process;
 	if (process->pr_Task.tc_Node.ln_Type != NT_PROCESS) {
 		return 0;
 	}
@@ -240,61 +277,55 @@ APTR AmigaDOSProcess::attachToProcess (const char *name)
 		process->pr_Task.tc_State = TS_SUSPENDED;
 	}
 
-	child  = process;
-
-	childExists = true;
-	childIsRunning = false;
-	parentIsAttached = true;
+	exists = true;
+	running = false;
+	attached = true;
     
 	hookOn ();
 
 //	readTaskContext ();
 
-	APTR elfHandle;
+	APTR handle;
 	IDOS->GetSegListInfoTags (seglist, 
-		GSLI_ElfHandle, &elfHandle,
+		GSLI_ElfHandle, &handle,
 		TAG_DONE
 	);
 		
-	return elfHandle;
+	return handle;
 }
 
-void AmigaDOSProcess::detachFromChild ()
+void AmigaDOSProcess::detach()
 {
 	hookOff();
 	
-	childExists = false;
-	childIsRunning = false;
-	parentIsAttached = false;
+	exists = false;
+	running = false;
+	attached = false;
 }
 
-void AmigaDOSProcess::readTaskContext ()
+void AmigaDOSProcess::readContext ()
 {
-	IDebug->ReadTaskContext  ((struct Task *)child, &context, RTCF_SPECIAL|RTCF_STATE|RTCF_VECTOR|RTCF_FPU);
+	IDebug->ReadTaskContext  ((struct Task *)process, &context, RTCF_SPECIAL|RTCF_STATE|RTCF_VECTOR|RTCF_FPU);
 }
 
-void AmigaDOSProcess::writeTaskContext ()
+void AmigaDOSProcess::writeContext ()
 {
-	IDebug->WriteTaskContext ((struct Task *)child, &context, RTCF_SPECIAL|RTCF_STATE|RTCF_VECTOR|RTCF_FPU);
+	IDebug->WriteTaskContext ((struct Task *)process, &context, RTCF_SPECIAL|RTCF_STATE|RTCF_VECTOR|RTCF_FPU);
 }
 
 // ------------------------------------------------------------------ //
 
-// asmSkip/Step/NoBranch
-
-// ------------------------------------------------------------------ //
-
-void AmigaDOSProcess::asmSkip() {
+void AmigaDOSProcess::skip() {
 	context.ip += 4;
-	IDebug->WriteTaskContext((struct Task *)child, &context, RTCF_STATE);
+	IDebug->WriteTaskContext((struct Task *)process, &context, RTCF_STATE);
 }
 
-void AmigaDOSProcess::asmStep()
+void AmigaDOSProcess::step()
 {
-	Tracer tracer(child, &context);
+	Tracer tracer(process, &context);
 	tracer.activate();
 	go();
-	waitTrap();
+	wait();
 	tracer.suspend();
 }
 
@@ -302,41 +333,15 @@ void AmigaDOSProcess::asmStep()
 
 void AmigaDOSProcess::go()
 {
-    IExec->RestartTask((struct Task *)child, 0);
+    IExec->RestartTask((struct Task *)process, 0);
 }
 
-void AmigaDOSProcess::waitTrap()
+void AmigaDOSProcess::wait()
 {
-	IExec->Wait(1 << trapSignal);
-}
-
-void AmigaDOSProcess::waitPort()
-{
-	IExec->WaitPort(port);
+	IExec->Wait(1 << signal);
 }
 
 void AmigaDOSProcess::wakeUp()
 {
-	IExec->Signal((struct Task *)IExec->FindTask(0), trapSignal);
+	IExec->Signal((struct Task *)IExec->FindTask(0), signal);
 }
-// ---------------------------------------------------------------------------- //
-
-#if 0
-uint32 symbolQuery(APTR handle, const char *name)
-{
-	IElf->OpenElfTags(OET_ElfHandle, handle, TAG_DONE);
-
-	struct Elf32_SymbolQuery query;
-    
-	query.Flags      = ELF32_SQ_BYNAME; // | ELF32_SQ_LOAD;
-	query.Name       = (STRPTR)name;
-	query.NameLength = strlen(name);
-	query.Value      = 0;
-
-	IElf->SymbolQuery((Elf32_Handle)handle, 1, &query);
-
-//	IElf->CloseElf((Elf32_Handle)handle, TAG_DONE);
-
-	return query.Value;
-}
-#endif

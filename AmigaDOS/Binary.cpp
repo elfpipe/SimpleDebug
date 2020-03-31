@@ -229,6 +229,15 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
     }
     *_sym = sym;
 }
+vector<string> SourceObject::getSourceNames() {
+    vector<string> result;
+    result.push_back(name);
+    for(vector<Function *>::iterator it = functions.begin(); it != functions.end(); it++)
+        for(vector<Function::SLine *>::iterator its = (*it)->lines.begin(); its != (*it)->lines.end(); it++)
+            if(!patch::contains(result, (*its)->source))
+                result.push_back((*its)->source);
+    return result;
+}
 string SourceObject::toString() {
     string result = name + "<SO> : [ " + patch::toString((void *)start) + "," + patch::toString((void *)end) + " ] --- {\n";
     for(vector<Type *>::iterator it = types.begin(); it != types.end(); it++)
@@ -257,6 +266,14 @@ Binary::Binary(string name, SymtabEntry *stab, const char *stabstr, uint64_t sta
         }
         sym++;
     }
+}
+vector<string> Binary::getSourceNames() {
+    vector<string> result;
+    for(vector<SourceObject *>::iterator it = objects.begin(); it != objects.end(); it++) {
+        vector<string> names = (*it)->getSourceNames();
+        result.insert(result.end(), names.begin(), names.end());
+    }
+    return result;
 }
 string Binary::toString() {
     string result = "<Binary> : [ STAB: 0x" + patch::toString((void*)stab) + " STABSTR: 0x" + patch::toString((void *)stabstr) + " STABSIZE: " + patch::toString((int)stabsize) + "] -- {\n";

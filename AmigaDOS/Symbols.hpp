@@ -7,30 +7,31 @@
 
 #include <string>
 #include <list>
+#include <vector>
 
 #include <exec/types.h>
 
 using namespace std;
 
-class OSSymbols
+class ElfSymbols
 {
 public:
-	struct OSSymbol {
+	struct ElfSymbol {
 		string name;
 		uint32 value;
 		
-		OSSymbol (string _name, uint32 _value) : name(_name), value(_value) { }
+		ElfSymbol (string _name, uint32 _value) : name(_name), value(_value) { }
 	};
 
 private:
-	list <OSSymbol *> symbols;
-	bool symbolsLoaded;
+	list <ElfSymbol *> symbols;
+	bool loaded;
 
 public:
-	OSSymbols();
-	~OSSymbols();
+	ElfSymbols();
+	~ElfSymbols();
 
-	bool hasSymbols() { return symbolsLoaded; }
+	bool hasSymbols() { return loaded; }
 	void clear();
 	
 	void readAll(APTR handle);
@@ -39,8 +40,6 @@ public:
 	uint32 valueOf(string name);
 	string nameFromValue(uint32 value);
 
-	//void dummy (APTR handle);
-
-    string printable();
+    vector<string> printable();
 };
 #endif

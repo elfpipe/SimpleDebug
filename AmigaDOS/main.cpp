@@ -37,42 +37,6 @@ string concat(vector<string> strs, int index)
 
 // ---------------------------------------------------------------------------- //
 
-bool handleMessages(struct MsgPort *port, AmigaDOSProcess *handler) {
-	bool exit = false;
-	struct AmigaDOSProcess::DebugMessage *message = (struct AmigaDOSProcess::DebugMessage *)IExec->GetMsg(port);
-	while(message) {
-		switch(message->type) {
-			case AmigaDOSProcess::MSGTYPE_EXCEPTION:
-				cout << "==EXCEPTION (ip = 0x" << (void *)handler->ip() << ")\n";
-				break;
-
-			case AmigaDOSProcess::MSGTYPE_TRAP:
-				cout << "==TRAP (ip = 0x" << (void *)handler->ip() << ")\n";
-				break;
-
-			case AmigaDOSProcess::MSGTYPE_CRASH:
-				cout << "==CRASH (ip = 0x" << (void *)handler->ip() << ")\n";
-				break;
-
-			case AmigaDOSProcess::MSGTYPE_OPENLIB:
-				cout << "==OPENLIB\n";
-				break;
-
-			case AmigaDOSProcess::MSGTYPE_CLOSELIB:
-				cout << "==CLOSELIB\n";
-				break;
-
-			case AmigaDOSProcess::MSGTYPE_CHILDDIED:
-				cout << "Child has DIED (exit)\n";
-				exit = true;
-				break;
-		}
-		message = (struct AmigaDOSProcess::DebugMessage *)IExec->GetMsg(port);
-	}
-	return exit;
-}
-// ---------------------------------------------------------------------------- //
-
 vector<string> getInput()
 {
 	vector<string> cmdArgs;
@@ -91,134 +55,202 @@ vector<string> getInput()
 	return cmdArgs;
 }
 
-int main(int argc, char *argv[])
-{
-	struct MsgPort *port = (struct MsgPort *)IExec->AllocSysObject(ASOT_PORT, TAG_DONE);
+// ---------------------------------------------------------------------------- //
 
-	AmigaDOSProcess handler(port);
-    OSSymbols symbols;
+class Debugger {
+private:
+	AmigaDOSProcess process;
+    ElfSymbols symbols;
     Breaks breaks;
 
 	ElfHandle *elfHandle = 0;
 	Binary *binary = 0;
 
+public:
+	Debugger() {
+	}
+	void open(APTR handle, string name) {
+		symbols.readAll(handle);
+
+		elfHandle = new ElfHandle(handle, name);
+		elfHandle->performRelocation();
+
+		binary = new Binary(elfHandle->getName(), (SymtabEntry *)elfHandle->getStabSection(), elfHandle->getStabstrSection(), elfHandle->getStabsSize());
+	}
+	bool load(string file, string args) {
+		APTR handle = process.load("", file, args);
+		if (handle) open(handle, file);
+		return handle != 0;
+	}
+	bool attach(string name) {
+		APTR handle = process.attach(name);
+		if(handle) open(handle, name);
+		return handle != 0;
+	}
+	void detach() {
+		process.detach();
+	}
+	bool handleMessages() {
+		return process.handleMessages();
+	}
+	vector<string> sourceFiles() {
+		return binary->getSourceNames();
+	}
+	vector<string> elfSymbols() {
+		return symbols.printable();
+	}
+	string binaryStructure() {
+		return binary->toString();
+	}
+	bool setBreakpoint(string file, int line) {
+
+	}
+	bool clearBreakpoint(string file, int line) {
+
+	}
+	bool start() {
+		bool exit = false;
+
+		process.step();
+		exit = handleMessages(); //?
+
+		breaks.activate();
+		process.go();
+		process.wait();
+		breaks.suspend();
+
+		exit = handleMessages();	
+	}
+	void skip() {
+		process.skip();
+	}
+	bool step() {
+		process.step();
+		return handleMessages();
+	}
+	void stepOver() {
+
+	}
+	void stepInto() {
+
+	}
+	void stepOut() {
+
+	}
+	vector<string> printContext() {
+
+	}
+};
+
+int main(int argc, char *argv[])
+{
+	Debugger debugger;
+
 	bool exit = false;
 	while(!exit) {
 		vector<string> args = getInput();
 
-		exit = handleMessages(port, &handler);
+		exit = debugger.handleMessages();
 
 		if(args.size() > 0) 
 		switch(args[0][0]) {
 			case 'l': {
-				string shellArgs;
-				if(args.size() >= 3) {
-					shellArgs = concat(args, 2);
-				}
-				if(args.size() >= 2) {
-					APTR handle = handler.loadChildProcess("", args[1].c_str(), shellArgs.c_str());
-					if (handle) {
-						cout << "Child process loaded\n";
-                        symbols.readAll(handle);
-
- 						elfHandle = new ElfHandle(handle, args[1].c_str(), false);
-						elfHandle->performRelocation();
-
-						binary = new Binary(elfHandle->getName(), (SymtabEntry *)elfHandle->getStabSection(), elfHandle->getStabstrSection(), elfHandle->getStabsSize());
-					}
-				}
+				bool success = false;
 				if(args.size() < 2)
-					cout << "Too few arguments\n";
+					cout << "Missing argument(s)\n";
+				else if(args.size() >= 3)
+					success = debugger.load(args[1], concat(args, 2));
+				else
+					success = debugger.load(args[1], "");
+				if(success) cout << "Process loaded\n";
 			}
 			break;
 
 			case 'a': {
 				if(args.size() < 2) {
-					cout << "Not enough arguments\n";
+					cout << "Missing argument\n";
 				} else {
-					APTR handle = handler.attachToProcess(args[1].c_str());
-					if(handle) {
+					if(debugger.attach(args[1]))
 						cout << "Attached to process\n";
-                        symbols.readAll(handle);
-
-						elfHandle = new ElfHandle(handle, args[1].c_str(), false);
-						elfHandle->performRelocation();
-
-						binary = new Binary(elfHandle->getName(), (SymtabEntry *)elfHandle->getStabSection(), elfHandle->getStabstrSection(), elfHandle->getStabsSize());
-                    }
 				}
 			}
 			break;
 
 			case 'd':
-				handler.detachFromChild();
+				cout << "Detach\n";
+				debugger.detach();
+				break;
+
+			case 'n': {
+				cout << "-- Source files: --\n";
+				vector<string> names = debugger.sourceFiles();
+				for(int i = 0; i < names.size(); i++)
+					cout << names[i] << "\n";
+				break;
+			}
+
+/*			case 'i':
+				cout << "ip: " << (void *)handler.ip() << "\n";
+				break;
+*/
+            case 'o': {
+                cout << "--Elf symbols:--\n";
+				vector<string> symbols = debugger.elfSymbols();
+				for(int i = 0; i < symbols.size(); i++)
+                	cout << symbols[i] << "\n";
+                break;
+			}
+			case 'p':
+				cout << "--Binary structure:--\n";
+				cout << debugger.binaryStructure();
 				break;
 
 			case 'b':
-				if(args.size() < 2) {
-					cout << "Too few arguments";
-				} else if(args.size() == 2) {
-                    uint32 address = symbols.valueOf(args[1].c_str());
-					if(address) {
-                        cout << "BREAK " << (void *)address << "\n";
-						breaks.insert(address);
-                    }
+				if(args.size() < 3) {
+					cout << "Missing argument(s)";
 				} else {
-					//Function::SLine *line = binary->find(args[1].c_str(), );
+					astream str(args[2]);
+					int line = str.getInt();
+					if(debugger.setBreakpoint(args[1], line))
+						cout << "Breakpoint set\n";
+					else
+						cout << "Breakpoint not set\n";
 				}
 				break;
 
 			case 'c':
-				if(args.size() < 2) {
-					cout << "Too few arguments";
+				if(args.size() < 3) {
+					cout << "Missing argument(s)\n";
 				} else {
-                    uint32 address = symbols.valueOf(args[1].c_str());
-					if(address) {
-                        cout << "CLEAR " << (void *)address << "\n";
-						breaks.remove(address);
-                    }
+					astream str(args[2]);
+					int line = str.getInt();
+					if(debugger.clearBreakpoint(args[1], line))
+						cout << "Breakpoint cleared\n";
+					else
+						cout << "Breakpoint not cleared\n";
 				}
 				break;
 				
-			case 'i':
-				cout << "ip: " << (void *)handler.ip() << "\n";
-				break;
-
-            case 'o':
-                cout << "--OSSymbols:--\n";
-                cout << symbols.printable();
-                break;
-
-			case 'p':
-				cout << "--Binary structure:--\n";
-				cout << binary->toString();
-				break;
-			
 			case 's': {
-                handler.asmStep();
-				exit = handleMessages(port, &handler);
-
-                breaks.activate();
-
-				handler.go();
-				handler.waitTrap();
-
-                breaks.suspend();
-
-				exit = handleMessages(port, &handler);
+				cout << "Start\n";
+				exit = debugger.start();
 				break;
 			}
 
 			case 'k':
-				cout << "==SKIP\n";
-				handler.asmSkip();
+				cout << "Skip\n";
+				debugger.skip();
 				break;
 
 			case 'z':
-				cout << "==ASM STEP\n";
-				handler.asmStep();
+				cout << "Step\n";
+				exit = debugger.step();
+				break;
 
-				exit = handleMessages(port, &handler);
+			case 'w': // write context data
+			case '1': // step over
+			case '2': // step into
+			case '3': //step out
 				break;
 
 			case 'q':
@@ -226,21 +258,29 @@ int main(int argc, char *argv[])
 				break;
 
 			case 'h':
-				cout << "==HELP==\n";
+				cout << "-- SimpleDebug --\n";
+
 				cout << "l <file> <args>: load child from file\n";
 				cout << "a <name>: attach to process in memory\n";
 				cout << "d: detach from child\n";
 
-				cout << "s: start execution\n";
-				cout << "k: skip instruction\n";
-				cout << "z: asm step\n";
+				cout << "n: print source file names\n";
+				cout << "i: print ip\n";
+				cout << "o: print os symbol list\n";
+                cout << "p: print binary structure\n";
 
 				cout << "b <symname>: break at symbol\n";
 				cout << "c: clear break\n";
 
-				cout << "i: print ip\n";
-				cout << "o: print os symbol list\n";
-                cout << "p: print binary structure\n";
+				cout << "s: start execution\n";
+				cout << "k: skip instruction\n";
+				cout << "z: execute instruction\n";
+
+				cout << "w: write context data\n";
+
+				cout << "1: step over\n";
+				cout << "2: step into\n";
+				cout << "3: step out\n";
 
 				cout << "q: quit debugger\n";
 				break;
@@ -249,10 +289,5 @@ int main(int argc, char *argv[])
 				break;
 		}
 	}
-	handleMessages(port, &handler);
-
-//	handler.cleanup();
-	IExec->FreeSysObject(ASOT_PORT, port);
-
     return 0;
 }

@@ -3,6 +3,7 @@
 
 #include <proto/exec.h>
 #include <stdint.h>
+#include <string>
 
 struct KernelDebugMessage
 {
@@ -41,44 +42,45 @@ public:
 	};
 
 private:
-    struct Process *child;
+    struct Process *process;
 	struct Hook hook;
 	static ExceptionContext context;
-	bool childExists;
-	bool childIsRunning;
-	bool parentIsAttached;
+	bool exists;
+	bool running;
+	bool attached;
 
 	static struct MsgPort *port;
-	static uint8_t trapSignal;
+	static uint8_t signal;
 
 private:
 	static ULONG amigaos_debug_callback (struct Hook *hook, struct Task *currentTask, struct KernelDebugMessage *dbgmsg);
 
 public:
-	AmigaDOSProcess(struct MsgPort *port) { this->port = port; init(); }
+	AmigaDOSProcess() { init(); }
 	~AmigaDOSProcess() { cleanup(); }
+
+	bool handleMessages();
 
     void init();
     void cleanup();
 
-    APTR loadChildProcess(const char *path, const char *command, const char *arguments);
-	APTR attachToProcess(const char *name);
-	void detachFromChild();
+    APTR load(string path, string command, string arguments);
+	APTR attach(string name);
+	void detach();
 
 	void hookOn();
 	void hookOff();
 
-	void readTaskContext ();
-	void writeTaskContext ();
+	void readContext ();
+	void writeContext ();
 
-	void asmSkip();
-	void asmStep();
+	void skip();
+	void step();
 
 	static uint32 ip () { return context.ip; }
 
     void go();
-    void waitPort();
-	void waitTrap();
+	void wait();
 	void wakeUp();
 };
 #endif

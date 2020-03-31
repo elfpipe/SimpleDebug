@@ -22,6 +22,12 @@ inline string toString(T a)
     ss << a;
 	return ss.str();
 }
+inline bool contains(vector<string> v, string s) {
+    for(vector<string>::iterator it = v.begin(); it != v.end(); it++)
+        if(s.compare(*it))
+            return true;
+    return false;
+}
 };
 class astream {
 private:
