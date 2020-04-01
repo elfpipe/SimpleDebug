@@ -106,7 +106,7 @@ public:
 class Range : public Type {
 public:
     typedef enum {
-        R_VeryLarge,
+        R_UInt64,
         R_Float32,
         R_Float64,
         R_Float128,
@@ -130,7 +130,7 @@ public:
             upper = str.getInt();
             str.peekSkip(';');
             if(lower == 0 && upper == -1) {
-                rangeType = R_VeryLarge;
+                rangeType = R_UInt64;
                 lower = 0;
                 upper = UINT_MAX;
             } else if (upper == 0) {
@@ -179,8 +179,8 @@ public:
     }
     uint32_t byteSize() {
         switch(rangeType) {
-            case R_VeryLarge:
-                return sizeof(unsigned long long);
+            case R_UInt64:
+                return 8;
             case R_Float32:
                 return 4;
             case R_Float64:
@@ -209,8 +209,8 @@ public:
     string toString() {
         string result("r" + no.toString() + " : ");
         switch(rangeType) {
-            case R_VeryLarge:
-                result += "<VeryLarge>";
+            case R_UInt64:
+                result += "<UInt64>";
                 break;
             case R_Float32:
                 result += "<Float32>";
@@ -244,9 +244,12 @@ public:
             return result;
         }
         switch(rangeType) {
-            // case R_VeryLarge:
-            //     result.push_back(patch::toString(*(unsigned long long *)base));
-            //     break;
+            case R_UInt64: {
+                //result.push_back(patch::toString(*(unsigned long long *)base)); //crashes
+                unsigned int value = *(unsigned long long *)base;
+                result.push_back(patch::toString(value));
+                break;
+            }
             case R_Float32:
                 result.push_back(patch::toString(*(float *)base));
                 break;
@@ -280,9 +283,12 @@ public:
                         case 4:
                             result.push_back(patch::toString(*(unsigned int *)base));
                             break;
-                        // case 8:
-                        //     result.push_back(patch::toString(*(unsigned long long *)base));
-                        //     break;
+                        case 8: {
+                            // result.push_back(patch::toString(*(unsigned long long *)base));
+                            unsigned int value = *(unsigned long long *)base;
+                            result.push_back(patch::toString(value));
+                            break;
+                        }
                         default:
                             result.push_back("<unknown>");
                             break;
@@ -298,9 +304,12 @@ public:
                         case 4:
                             result.push_back(patch::toString(*(int *)base));
                             break;
-                        // case 8:
-                        //     result.push_back(patch::toString(*(long long *)base));
-                        //     break;
+                        case 8: {
+                            // result.push_back(patch::toString(*(long long *)base));
+                            int value = *(long long *)base;
+                            result.push_back(patch::toString(value));
+                            break;
+                        }
                         default:
                             result.push_back("<unknown>");
                             break;
