@@ -391,6 +391,14 @@ public:
             result += (*it)->toString();
         return result + "} RBRAC [0x" + patch::toString((void *)end) + "] --\n";
     }
+    Scope *getScope(uint32_t address) {
+        for(int i = 0; i < children.size(); i++) {
+            Scope *s = children[i];
+            if(s->begin <= address && s->end >= address)
+                return s->getScope(address);
+        }
+        return this;
+    }
 };
 class Function : public Symbol {
 public:
@@ -466,6 +474,8 @@ public:
 public:
     Binary(string name, SymtabEntry *stab, const char *stabstr, uint64_t stabsize);
     vector<string> getSourceNames();
+    uint32_t getLineAddress(string file, int line);
+    Function *getFunction(uint32_t address);
     string toString();
 };
 #endif //DEFINITIONS_HPP

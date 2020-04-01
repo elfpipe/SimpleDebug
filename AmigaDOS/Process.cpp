@@ -204,7 +204,7 @@ ULONG AmigaDOSProcess::amigaos_debug_callback (struct Hook *hook, struct Task *c
 
 void AmigaDOSProcess::hookOn()
 {
-	struct HookData *data = new HookData(IExec->FindTask(0), trapSignal);
+	struct HookData *data = new HookData(IExec->FindTask(0), signal);
 
     hook.h_Entry = (ULONG (*)())amigaos_debug_callback;
     hook.h_Data =  (APTR)data;

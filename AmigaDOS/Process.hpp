@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <string>
 
+using namespace std;
+
 struct KernelDebugMessage
 {
   uint32 type;
@@ -78,6 +80,7 @@ public:
 	void step();
 
 	static uint32 ip () { return context.ip; }
+	static uint32 sp () { return context.gpr[1]; }
 
     void go();
 	void wait();

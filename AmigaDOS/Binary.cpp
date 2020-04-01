@@ -275,6 +275,32 @@ vector<string> Binary::getSourceNames() {
     }
     return result;
 }
+uint32_t Binary::getLineAddress(string file, int line) {
+    for(int i = 0; i < objects.size(); i++) {
+        SourceObject *object = objects[i];
+        for(int j = 0; j < object->functions.size(); j++) {
+            Function *function = object->functions[j];
+            for(int k = 0; k < function->lines.size(); k++) {
+                Function::SLine *sline = function->lines[k];
+                if(!sline->source.compare(file) && sline->line == line)
+                    return sline->address;
+            }
+        }
+    }
+    return 0x0;
+}
+Function *Binary::getFunction(uint32_t address) {
+    for(int i = 0; i < objects.size(); i++) {
+        SourceObject *object = objects[i];
+        for(int j = 0; j < object->functions.size(); j++) {
+            Function *function = object->functions[j];
+            Scope *scope = function->locals[0];
+            if(scope && scope->begin <= address && scope->end >= address)
+                return function;
+        }
+    }
+    return 0;
+}
 string Binary::toString() {
     string result = "<Binary> : [ STAB: 0x" + patch::toString((void*)stab) + " STABSTR: 0x" + patch::toString((void *)stabstr) + " STABSIZE: " + patch::toString((int)stabsize) + "] -- {\n";
     for(vector<SourceObject *>::iterator it = objects.begin(); it != objects.end(); it++)

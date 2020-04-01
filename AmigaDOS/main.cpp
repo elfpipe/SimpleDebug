@@ -103,10 +103,14 @@ public:
 		return binary->toString();
 	}
 	bool setBreakpoint(string file, int line) {
-
+		uint32_t address = binary->getLineAddress(file, line);
+		if(address)	breaks.insert(address);
+		return address != 0;
 	}
 	bool clearBreakpoint(string file, int line) {
-
+		uint32_t address = binary->getLineAddress(file, line);
+		if(address) breaks.remove(address);
+		return address != 0;
 	}
 	bool start() {
 		bool exit = false;
@@ -119,7 +123,8 @@ public:
 		process.wait();
 		breaks.suspend();
 
-		exit = handleMessages();	
+		exit = handleMessages();
+		return exit;
 	}
 	void skip() {
 		process.skip();
@@ -138,7 +143,43 @@ public:
 
 	}
 	vector<string> printContext() {
+		vector<string> result;
+		Function *function = binary->getFunction(process.ip());
+		for(int i = 0; i < function->params.size(); i++) {
+			string value = function->params[i]->toString(); //valueString(process.sp());
+			result.push_back("<P>" + function->params[i]->name + " : " + value);
+		}
 
+		Scope *scope = function->locals[0];
+		if(scope) scope = scope->getScope(process.ip());
+		while(scope) {
+			for(int i = 0; i < scope->children.size(); i++) {
+				for(int j = 0; j < scope->symbols.size(); j++) {
+					Symbol *symbol = scope->symbols[i];
+					string value = symbol->toString(); //valueString(process.sp());
+					result.push_back(symbol->name + " : " + value);
+				}
+			}
+			scope = scope->parent;
+		}
+		return result;
+	}
+	vector<string> printGlobals() {
+		vector<string> result;
+		for(int i = 0; i < binary->objects.size(); i++) {
+			SourceObject *object = binary->objects[i];
+			for(int j = 0; j < object->globals.size(); j++) {
+				Symbol *symbol = object->globals[j];
+				if(symbol->symType == Symbol::S_Global) {
+					string value = symbol->toString(); //valueString(0x0);
+					result.push_back("<G>" + symbol->name + " : " + value);
+				}
+			}
+		}
+		return result;
+	}
+	uint32_t getIp() {
+		return process.ip();
 	}
 };
 
@@ -265,12 +306,12 @@ int main(int argc, char *argv[])
 				cout << "d: detach from child\n";
 
 				cout << "n: print source file names\n";
-				cout << "i: print ip\n";
+//				cout << "i: print ip\n";
 				cout << "o: print os symbol list\n";
                 cout << "p: print binary structure\n";
 
-				cout << "b <symname>: break at symbol\n";
-				cout << "c: clear break\n";
+				cout << "b <file> <line>: insert breakpoint\n";
+				cout << "c: clear breakpoint\n";
 
 				cout << "s: start execution\n";
 				cout << "k: skip instruction\n";
