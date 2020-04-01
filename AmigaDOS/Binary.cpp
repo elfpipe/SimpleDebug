@@ -229,15 +229,6 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
     }
     *_sym = sym;
 }
-vector<string> SourceObject::getSourceNames() {
-    vector<string> result;
-    result.push_back(name);
-    for(vector<Function *>::iterator it = functions.begin(); it != functions.end(); it++)
-        for(vector<Function::SLine *>::iterator its = (*it)->lines.begin(); its != (*it)->lines.end(); it++)
-            if(!patch::contains(result, (*its)->source))
-                result.push_back((*its)->source);
-    return result;
-}
 string SourceObject::toString() {
     string result = name + "<SO> : [ " + patch::toString((void *)start) + "," + patch::toString((void *)end) + " ] --- {\n";
     for(vector<Type *>::iterator it = types.begin(); it != types.end(); it++)
@@ -270,8 +261,12 @@ Binary::Binary(string name, SymtabEntry *stab, const char *stabstr, uint64_t sta
 vector<string> Binary::getSourceNames() {
     vector<string> result;
     for(vector<SourceObject *>::iterator it = objects.begin(); it != objects.end(); it++) {
-        vector<string> names = (*it)->getSourceNames();
-        result.insert(result.end(), names.begin(), names.end());
+        result.push_back(name);
+        for(vector<Function *>::iterator itf = (*it)->functions.begin(); itf != (*it)->functions.end(); itf++) {
+            for(vector<Function::SLine *>::iterator its = (*itf)->lines.begin(); its != (*itf)->lines.end(); its++)
+                if(!patch::contains(result, (*its)->source))
+                    result.push_back((*its)->source);
+        }
     }
     return result;
 }
@@ -300,6 +295,17 @@ Function *Binary::getFunction(uint32_t address) {
         }
     }
     return 0;
+}
+uint32_t Binary::getFunctionAddress(string name) {
+    for(int i = 0; i < objects.size(); i++) {
+        SourceObject *object = objects[i];
+        for(int j = 0; j < object->functions.size(); j++) {
+            Function *function = object->functions[j];
+            if(!function->name.compare(name))
+                return function->address;
+        }
+    }
+    return 0x0;
 }
 string Binary::toString() {
     string result = "<Binary> : [ STAB: 0x" + patch::toString((void*)stab) + " STABSTR: 0x" + patch::toString((void *)stabstr) + " STABSIZE: " + patch::toString((int)stabsize) + "] -- {\n";

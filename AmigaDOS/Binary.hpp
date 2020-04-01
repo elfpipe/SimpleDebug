@@ -461,7 +461,7 @@ public:
     Type *interpretType(Type::TypeNo no, astream &str);
     Symbol *interpretSymbol(astream &str, uint64_t address);
     Function *interpretFun(astream &str, uint64_t address);
-    vector<string> getSourceNames(); 
+    //vector<string> getSourceNames(); 
     string toString();
 };
 class Binary {
@@ -476,6 +476,7 @@ public:
     vector<string> getSourceNames();
     uint32_t getLineAddress(string file, int line);
     Function *getFunction(uint32_t address);
+    uint32_t getFunctionAddress(string name);
     string toString();
 };
 #endif //DEFINITIONS_HPP

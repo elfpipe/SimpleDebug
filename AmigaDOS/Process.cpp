@@ -45,6 +45,7 @@ void AmigaDOSProcess::cleanup ()
 		IExec->DropInterface((struct Interface *)IMMU);
 	IMMU = 0;
 
+	if(port) IExec->FreeSysObject(ASOT_PORT, port);
 	IExec->FreeSignal(signal);
 }
 

@@ -102,14 +102,14 @@ public:
 	string binaryStructure() {
 		return binary->toString();
 	}
-	bool setBreakpoint(string file, int line) {
+	bool breakpoint(string file, int line, bool set) {
 		uint32_t address = binary->getLineAddress(file, line);
-		if(address)	breaks.insert(address);
+		if(address)	set ? breaks.insert(address) : breaks.remove(address);
 		return address != 0;
 	}
-	bool clearBreakpoint(string file, int line) {
-		uint32_t address = binary->getLineAddress(file, line);
-		if(address) breaks.remove(address);
+	bool breakpoint(string function, bool set) {
+		uint32_t address = binary->getFunctionAddress(function);
+		if(address)	set ? breaks.insert(address) : breaks.remove(address);
 		return address != 0;
 	}
 	bool start() {
@@ -194,7 +194,7 @@ int main(int argc, char *argv[])
 		exit = debugger.handleMessages();
 
 		if(args.size() > 0) 
-		switch(args[0][0]) {
+		switch(char c = args[0][0]) {
 			case 'l': {
 				bool success = false;
 				if(args.size() < 2)
@@ -230,10 +230,10 @@ int main(int argc, char *argv[])
 				break;
 			}
 
-/*			case 'i':
-				cout << "ip: " << (void *)handler.ip() << "\n";
+			case 'i':
+				cout << "ip: " << (void *)debugger.getIp() << "\n";
 				break;
-*/
+
             case 'o': {
                 cout << "--Elf symbols:--\n";
 				vector<string> symbols = debugger.elfSymbols();
@@ -247,28 +247,21 @@ int main(int argc, char *argv[])
 				break;
 
 			case 'b':
-				if(args.size() < 3) {
-					cout << "Missing argument(s)";
-				} else {
-					astream str(args[2]);
-					int line = str.getInt();
-					if(debugger.setBreakpoint(args[1], line))
+			case 'c':
+				if(args.size() < 2) {
+					cout << "Missing argument";
+				} else if (args.size() == 2) {
+					if(debugger.breakpoint(args[1], c == 'b'))
 						cout << "Breakpoint set\n";
 					else
 						cout << "Breakpoint not set\n";
-				}
-				break;
-
-			case 'c':
-				if(args.size() < 3) {
-					cout << "Missing argument(s)\n";
 				} else {
 					astream str(args[2]);
 					int line = str.getInt();
-					if(debugger.clearBreakpoint(args[1], line))
-						cout << "Breakpoint cleared\n";
+					if(debugger.breakpoint(args[1], line, c == 'b'))
+						cout << "Breakpoint set\n";
 					else
-						cout << "Breakpoint not cleared\n";
+						cout << "Breakpoint not set\n";
 				}
 				break;
 				
@@ -288,7 +281,20 @@ int main(int argc, char *argv[])
 				exit = debugger.step();
 				break;
 
-			case 'w': // write context data
+			case 'w': { // write context data
+				vector<string> symbols = debugger.printContext();
+				for(int i = 0; i < symbols.size(); i++)
+                	cout << symbols[i] << "\n";
+                break;
+			}
+
+			case 'g': { // write global symbols
+				vector<string> symbols = debugger.printGlobals();
+				for(int i = 0; i < symbols.size(); i++)
+                	cout << symbols[i] << "\n";
+                break;
+			}
+
 			case '1': // step over
 			case '2': // step into
 			case '3': //step out
@@ -306,11 +312,12 @@ int main(int argc, char *argv[])
 				cout << "d: detach from child\n";
 
 				cout << "n: print source file names\n";
-//				cout << "i: print ip\n";
+				cout << "i: print instruction pointer\n";
 				cout << "o: print os symbol list\n";
                 cout << "p: print binary structure\n";
 
 				cout << "b <file> <line>: insert breakpoint\n";
+				cout << "b <function>: insert breakpoint\n";
 				cout << "c: clear breakpoint\n";
 
 				cout << "s: start execution\n";
@@ -318,6 +325,7 @@ int main(int argc, char *argv[])
 				cout << "z: execute instruction\n";
 
 				cout << "w: write context data\n";
+				cout << "g: write global symbols data\n";
 
 				cout << "1: step over\n";
 				cout << "2: step into\n";
