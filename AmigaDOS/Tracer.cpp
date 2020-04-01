@@ -26,7 +26,7 @@ void Tracer::suspend() {
     if(hasTraceBit()) {
         unsetTraceBit();
     } else {
-        breaks.suspend();
+        breaks.deactivate();
         breaks.clear();
     }
 }

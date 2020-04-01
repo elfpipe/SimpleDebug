@@ -24,7 +24,7 @@ void Breaks::activate()
 	activated = true;
 }
 
-void Breaks::suspend()
+void Breaks::deactivate()
 {
 	for (list<Break *>::iterator it = breaks.begin(); it != breaks.end(); it++)
 		memory_remove_break_instruction((*it)->address, &(*it)->buffer);

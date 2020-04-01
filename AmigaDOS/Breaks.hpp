@@ -29,7 +29,7 @@ public:
 	bool isBreak(uint32_t address);
 
 	void activate();
-	void suspend();
+	void deactivate();
 
 	void insert(uint32_t address);
 	void remove(uint32_t address);

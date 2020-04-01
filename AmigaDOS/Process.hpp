@@ -81,7 +81,8 @@ public:
 
 	uint32_t ip () { readContext(); return context.ip; }
 	uint32_t sp () { readContext(); return context.gpr[1]; } //(uint32_t)((Task *)process)->tc_SPReg; }
-
+	uint32_t lr () { readContext(); return context.lr; }
+	
     void go();
 	void wait();
 	void wakeUp();

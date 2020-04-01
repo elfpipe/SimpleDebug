@@ -117,7 +117,7 @@ public:
 		breaks.activate();
 		process.go();
 		process.wait();
-		breaks.suspend();
+		breaks.deactivate();
 
 		cout << "At: " << location() << "\n";
 		return handleMessages();
@@ -129,14 +129,52 @@ public:
 		process.step();
 		return handleMessages();
 	}
-	void stepOver() {
+	bool stepOver() {
+		Breaks linebreaks;
+		Function *function = binary->getFunction(process.ip());
+		for(int i = 0; i < function->lines.size(); i++) {
+			linebreaks.insert(function->address + function->lines[i]->address);
+		}
+		process.step();
 
+		breaks.activate();
+		linebreaks.activate();
+
+		process.go();
+		process.wait();
+
+		linebreaks.deactivate();
+		breaks.deactivate();
+
+		cout << "At: " << location() << "\n";
+		return handleMessages();
 	}
-	void stepInto() {
-
+	bool stepInto() {
+		bool atLine = false;
+		while(!atLine) {
+			process.step();
+			atLine = binary->getLocation(process.ip()).size() > 0;
+		}
+		cout << "At: " << location() << "\n";
+		return handleMessages();
 	}
-	void stepOut() {
+	bool stepOut() {
+		Breaks outBreak;
+		outBreak.insert(process.lr());
 
+		process.step();
+
+		breaks.activate();
+		outBreak.activate();
+
+		process.go();
+		process.wait();
+
+		outBreak.deactivate();
+		breaks.deactivate();
+
+		cout << "At: " << location() << "\n";
+		return handleMessages();
 	}
 	vector<string> context() {
 		return binary->getContext(process.ip(), process.sp());
@@ -280,8 +318,15 @@ int main(int argc, char *argv[])
 			}
 
 			case '1': // step over
+				debugger.stepOver();
+				break;
+
 			case '2': // step into
+				debugger.stepInto();
+				break;
+
 			case '3': // step out
+				debugger.stepOut();
 				break;
 
 			case 'q':
