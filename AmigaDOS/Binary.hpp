@@ -3,6 +3,7 @@
 
 #include "Strings.hpp"
 #include "LowLevel.hpp"
+#include "Symbols.hpp"
 #include "symtabs.h"
 
 #include <string>
@@ -302,6 +303,7 @@ public:
                             result.push_back(patch::toString(*(short *)base));
                             break;
                         case 4:
+                            cout << "==INT==\n";
                             result.push_back(patch::toString(*(int *)base));
                             break;
                         case 8: {
@@ -443,12 +445,16 @@ public:
     }
     vector<string> values(uint32_t base) {
         vector<string> result;
-        int value = *(int *)base;
-        for(int i = 0; i < entries.size(); i++)
-            if(entries[i]->value == value) {
-                result.push_back(entries[i]->name + "(" + patch::toString(value) + ")");
-                break;
-            }
+        if(is_readable_address(base)) {
+            int value = *(int *)base;
+            for(int i = 0; i < entries.size(); i++)
+                if(entries[i]->value == value) {
+                    result.push_back(entries[i]->name + "(" + patch::toString(value) + ")");
+                    break;
+                }
+        } else {
+            result.push_back("<no access");
+        }
         return result;
     }
 };
@@ -665,7 +671,7 @@ public:
     string getLocation(uint32_t address);
     uint32_t getFunctionAddress(string name);
     vector<string> getContext(uint32_t ip, uint32_t sp);
-    vector<string> getGlobals();
+    vector<string> getGlobals(ElfSymbols &symbols);
     string toString();
 };
 #endif //DEFINITIONS_HPP

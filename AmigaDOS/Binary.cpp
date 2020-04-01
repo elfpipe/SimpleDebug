@@ -341,14 +341,14 @@ vector<string> Binary::getContext(uint32_t ip, uint32_t sp) {
     }
     return result;
 }
-vector<string> Binary::getGlobals() {
+vector<string> Binary::getGlobals(ElfSymbols &symbols) {
     vector<string> result;
     for(int i = 0; i < objects.size(); i++) {
         SourceObject *object = objects[i];
         for(int j = 0; j < object->globals.size(); j++) {
             Symbol *symbol = object->globals[j];
             if(symbol->symType == Symbol::S_Global) {
-                vector<string> values = symbol->values(0x0);
+                vector<string> values = symbol->values(symbols.valueOf(symbol->name));
                 result.insert(result.begin(), values.begin(), values.end());
             }
         }

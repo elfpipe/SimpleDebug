@@ -180,7 +180,7 @@ public:
 		return binary->getContext(process.ip(), process.sp());
 	}
 	vector<string> globals() {
-		return binary->getGlobals();
+		return binary->getGlobals(symbols);
 	}
 	uint32_t getIp() {
 		return process.ip();

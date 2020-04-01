@@ -2,6 +2,7 @@
 #define PROCESSHANDLER_HPP
 
 #include <proto/exec.h>
+#include <proto/dos.h>
 #include <stdint.h>
 #include <string>
 
@@ -80,9 +81,9 @@ public:
 	void step();
 
 	uint32_t ip () { readContext(); return context.ip; }
-	uint32_t sp () { readContext(); return context.gpr[1]; } //(uint32_t)((Task *)process)->tc_SPReg; }
+	uint32_t sp () { readContext(); /*return context.gpr[1]; }*/ return (uint32_t)process->pr_Task.tc_SPReg; }
 	uint32_t lr () { readContext(); return context.lr; }
-	
+
     void go();
 	void wait();
 	void wakeUp();
