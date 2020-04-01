@@ -25,7 +25,7 @@ public:
 	ElfHandle (APTR handle, string name, bool isOpen = false);
 	~ElfHandle();
 	
-	APTR nativeHandle () { return handle; }
+	APTR getHandle () { return handle; }
     string getName() { return name; }
 
 	bool open () {	

@@ -40,17 +40,12 @@ string concat(vector<string> strs, int index)
 vector<string> getInput()
 {
 	vector<string> cmdArgs;
-	
-	while(1) {
-		cout << "> ";
 
-		string command;
-		getline(cin, command);
-		split2(command, cmdArgs);
+	cout << "> ";
 
-//		if(cmdArgs[0].length() == 1)
-			break;
-	}
+	string command;
+	getline(cin, command);
+	split2(command, cmdArgs);
 
 	return cmdArgs;
 }
@@ -59,23 +54,27 @@ vector<string> getInput()
 
 class Debugger {
 private:
-	AmigaDOSProcess process;
+	AmigaProcess process;
     ElfSymbols symbols;
     Breaks breaks;
 
-	ElfHandle *elfHandle = 0;
+	ElfHandle *handle = 0;
 	Binary *binary = 0;
 
 public:
 	Debugger() {
 	}
-	void open(APTR handle, string name) {
+	~Debugger() {
+		if(handle) delete handle;
+		if(binary) delete binary;
+	}
+	void open(APTR _handle, string name) {
+		handle = new ElfHandle(_handle, name);
+		handle->performRelocation();
+
 		symbols.readAll(handle);
 
-		elfHandle = new ElfHandle(handle, name);
-		elfHandle->performRelocation();
-
-		binary = new Binary(elfHandle->getName(), (SymtabEntry *)elfHandle->getStabSection(), elfHandle->getStabstrSection(), elfHandle->getStabsSize());
+		binary = new Binary(handle->getName(), (SymtabEntry *)handle->getStabSection(), handle->getStabstrSection(), handle->getStabsSize());
 	}
 	bool load(string file, string args) {
 		APTR handle = process.load("", file, args);
@@ -113,18 +112,15 @@ public:
 		return address != 0;
 	}
 	bool start() {
-		bool exit = false;
-
 		process.step();
-		exit = handleMessages(); //?
 
 		breaks.activate();
 		process.go();
 		process.wait();
 		breaks.suspend();
 
-		exit = handleMessages();
-		return exit;
+		cout << "At: " << location() << "\n";
+		return handleMessages();
 	}
 	void skip() {
 		process.skip();
@@ -142,44 +138,20 @@ public:
 	void stepOut() {
 
 	}
-	vector<string> printContext() {
-		vector<string> result;
-		Function *function = binary->getFunction(process.ip());
-		for(int i = 0; i < function->params.size(); i++) {
-			string value = function->params[i]->toString(); //valueString(process.sp());
-			result.push_back("<P>" + function->params[i]->name + " : " + value);
-		}
-
-		Scope *scope = function->locals[0];
-		if(scope) scope = scope->getScope(process.ip());
-		while(scope) {
-			for(int i = 0; i < scope->children.size(); i++) {
-				for(int j = 0; j < scope->symbols.size(); j++) {
-					Symbol *symbol = scope->symbols[i];
-					string value = symbol->toString(); //valueString(process.sp());
-					result.push_back(symbol->name + " : " + value);
-				}
-			}
-			scope = scope->parent;
-		}
-		return result;
+	vector<string> context() {
+		return binary->getContext(process.ip(), process.sp());
 	}
-	vector<string> printGlobals() {
-		vector<string> result;
-		for(int i = 0; i < binary->objects.size(); i++) {
-			SourceObject *object = binary->objects[i];
-			for(int j = 0; j < object->globals.size(); j++) {
-				Symbol *symbol = object->globals[j];
-				if(symbol->symType == Symbol::S_Global) {
-					string value = symbol->toString(); //valueString(0x0);
-					result.push_back("<G>" + symbol->name + " : " + value);
-				}
-			}
-		}
-		return result;
+	vector<string> globals() {
+		return binary->getGlobals();
 	}
 	uint32_t getIp() {
 		return process.ip();
+	}
+	uint32_t getSp() {
+		return process.sp();
+	}
+	string location() {
+		return binary->getLocation(process.ip());
 	}
 };
 
@@ -192,6 +164,7 @@ int main(int argc, char *argv[])
 		vector<string> args = getInput();
 
 		exit = debugger.handleMessages();
+		if (exit) break;
 
 		if(args.size() > 0) 
 		switch(char c = args[0][0]) {
@@ -232,6 +205,10 @@ int main(int argc, char *argv[])
 
 			case 'i':
 				cout << "ip: " << (void *)debugger.getIp() << "\n";
+				break;
+
+			case 'v':
+				cout << "sp : 0x" << (void *)debugger.getSp() << "\n";
 				break;
 
             case 'o': {
@@ -282,14 +259,21 @@ int main(int argc, char *argv[])
 				break;
 
 			case 'w': { // write context data
-				vector<string> symbols = debugger.printContext();
-				for(int i = 0; i < symbols.size(); i++)
+				vector<string> symbols = debugger.context();
+				int indent = 0;
+				for(int i = 0; i < symbols.size(); i++) {
+					astream str(symbols[i]);
+					if(str.endsWith('}')) indent--;
+					for(int j = 0; j < indent; j++)
+						cout << "\t";
+					if(str.endsWith('{')) indent++;
                 	cout << symbols[i] << "\n";
+				}
                 break;
 			}
 
 			case 'g': { // write global symbols
-				vector<string> symbols = debugger.printGlobals();
+				vector<string> symbols = debugger.globals();
 				for(int i = 0; i < symbols.size(); i++)
                 	cout << symbols[i] << "\n";
                 break;
@@ -297,7 +281,7 @@ int main(int argc, char *argv[])
 
 			case '1': // step over
 			case '2': // step into
-			case '3': //step out
+			case '3': // step out
 				break;
 
 			case 'q':
@@ -306,31 +290,31 @@ int main(int argc, char *argv[])
 
 			case 'h':
 				cout << "-- SimpleDebug --\n";
-
+				cout << "\n";
 				cout << "l <file> <args>: load child from file\n";
 				cout << "a <name>: attach to process in memory\n";
 				cout << "d: detach from child\n";
-
+				cout << "\n";
 				cout << "n: print source file names\n";
 				cout << "i: print instruction pointer\n";
 				cout << "o: print os symbol list\n";
                 cout << "p: print binary structure\n";
-
+				cout << "\n";
 				cout << "b <file> <line>: insert breakpoint\n";
 				cout << "b <function>: insert breakpoint\n";
 				cout << "c: clear breakpoint\n";
-
+				cout << "\n";
 				cout << "s: start execution\n";
 				cout << "k: skip instruction\n";
 				cout << "z: execute instruction\n";
-
+				cout << "\n";
 				cout << "w: write context data\n";
 				cout << "g: write global symbols data\n";
-
+				cout << "\n";
 				cout << "1: step over\n";
 				cout << "2: step into\n";
 				cout << "3: step out\n";
-
+				cout << "\n";
 				cout << "q: quit debugger\n";
 				break;
 

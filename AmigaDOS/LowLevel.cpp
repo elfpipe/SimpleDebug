@@ -1,7 +1,7 @@
 #include <proto/exec.h>
 #include "LowLevel.hpp"
 
-bool is_readable_address (uint32 addr)
+bool is_readable_address (uint32_t addr)
 {
     uint32 attr, masked;
     APTR stack;
@@ -23,7 +23,7 @@ bool is_readable_address (uint32 addr)
     return ret;
 }
 
-bool is_writable_address (uint32 addr)
+bool is_writable_address (uint32_t addr)
 {
     uint32 attr, oldattr, masked;
     APTR stack;

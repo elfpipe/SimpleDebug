@@ -17,7 +17,7 @@ struct KernelDebugMessage
   } message;
 };
 
-class AmigaDOSProcess {
+class AmigaProcess {
 public:
 	typedef enum {
 		MSGTYPE_EXCEPTION,
@@ -58,8 +58,8 @@ private:
 	static ULONG amigaos_debug_callback (struct Hook *hook, struct Task *currentTask, struct KernelDebugMessage *dbgmsg);
 
 public:
-	AmigaDOSProcess() { init(); }
-	~AmigaDOSProcess() { cleanup(); }
+	AmigaProcess() { init(); }
+	~AmigaProcess() { cleanup(); }
 
 	bool handleMessages();
 
@@ -79,8 +79,8 @@ public:
 	void skip();
 	void step();
 
-	static uint32 ip () { return context.ip; }
-	static uint32 sp () { return context.gpr[1]; }
+	uint32_t ip () { readContext(); return context.ip; }
+	uint32_t sp () { readContext(); return context.gpr[1]; } //(uint32_t)((Task *)process)->tc_SPReg; }
 
     void go();
 	void wait();

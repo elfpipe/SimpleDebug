@@ -2,6 +2,7 @@
 #define DEFINITIONS02_HPP
 
 #include "Strings.hpp"
+#include "LowLevel.hpp"
 #include "symtabs.h"
 
 #include <string>
@@ -60,9 +61,10 @@ public:
         this->typeClass = typeClass;
         this->no = no;
     }
-    //Type(TypeNo no, astream &str);
     virtual ~Type();
     virtual string toString() = 0;
+    virtual uint32_t byteSize() = 0;
+    virtual vector<string> values(uint32_t base) = 0;
 };
 class Ref : public Type {
 public:
@@ -76,6 +78,12 @@ public:
     string toString() {
         return ref->toString();
     }
+    uint32_t byteSize() {
+        return ref->byteSize();
+    }
+    vector<string> values(uint32_t base) {
+        return ref->values(base);
+    };
 };
 class Void : public Type {
 public:
@@ -86,6 +94,14 @@ public:
     string toString() {
         return "<void>";
     }
+    uint32_t byteSize() {
+        return 0;
+    }
+    vector<string> values(uint32_t base) {
+        vector<string> result;
+        result.push_back("<void>");
+        return result;
+    };
 };
 class Range : public Type {
 public:
@@ -220,6 +236,83 @@ public:
         }
         return result; // + patch::toString((unsigned int)byteSize());
     }
+    vector<string> values(uint32_t base) {
+        cout << "base: 0x" << (void *)base;
+        vector<string> result;
+        if(!is_readable_address(base)) {
+            result.push_back("<no access>");
+            return result;
+        }
+        switch(rangeType) {
+            // case R_VeryLarge:
+            //     result.push_back(patch::toString(*(unsigned long long *)base));
+            //     break;
+            case R_Float32:
+                result.push_back(patch::toString(*(float *)base));
+                break;
+            case R_Float64:
+                result.push_back(patch::toString(*(double *)base));
+                break;
+            case R_Float128:
+                result.push_back(patch::toString(*(long double *)base));
+                break;
+            case R_Complex8:
+                result.push_back("real : " + patch::toString(*(float *)base));
+                result.push_back("imag : " + patch::toString(*(float *)(base + 4)));
+                break;
+            case R_Complex16:
+                result.push_back("real : " + patch::toString(*(double *)base));
+                result.push_back("imag : " + patch::toString(*(double *)(base + 8)));
+                break;
+            case R_Complex32:
+                result.push_back("real : " + patch::toString(*(long double *)base));
+                result.push_back("imag : " + patch::toString(*(long double *)(base + 16)));
+                break;
+            case R_Defined:
+                if(lower >= 0) {
+                    switch(byteSize()) {
+                        case 1:
+                            result.push_back(patch::toString(*(unsigned char *)base));
+                            break;
+                        case 2:
+                            result.push_back(patch::toString(*(unsigned short *)base));
+                            break;
+                        case 4:
+                            result.push_back(patch::toString(*(unsigned int *)base));
+                            break;
+                        // case 8:
+                        //     result.push_back(patch::toString(*(unsigned long long *)base));
+                        //     break;
+                        default:
+                            result.push_back("<unknown>");
+                            break;
+                    }
+                } else {
+                    switch(byteSize()) {
+                        case 1:
+                            result.push_back(patch::toString(*(char *)base));
+                            break;
+                        case 2:
+                            result.push_back(patch::toString(*(short *)base));
+                            break;
+                        case 4:
+                            result.push_back(patch::toString(*(int *)base));
+                            break;
+                        // case 8:
+                        //     result.push_back(patch::toString(*(long long *)base));
+                        //     break;
+                        default:
+                            result.push_back("<unknown>");
+                            break;
+                    }
+                }
+                break;
+            default:
+                result.push_back("<unknown>");
+                break;
+        }
+        return result;
+    }
 };
 class Array : public Type {
 public:
@@ -230,6 +323,23 @@ public:
     Array(SourceObject *object, TypeNo no, astream &str);
     string toString() {
         return "a" + no.toString() + " [over: " + (range ? range->toString() : "<n>") + ";" + patch::toString((int)lower) + "," + patch::toString((int)upper)+ "] of " + (type ? type->toString() : "<n>");
+    }
+    uint32_t byteSize() {
+        return type->byteSize() * (upper - lower);
+    }
+    vector<string> values(uint32_t base) {
+        vector<string> result;
+
+        uint32_t address = base;
+        uint32_t place = lower;
+
+        while(place <= upper) {
+            vector<string> v = type->values(address);
+            result.insert(result.end(), v.begin(), v.end());
+            address += type->byteSize();
+            place++;
+        }
+        return result;
     }
 };
 class Struct : public Type { //applies to union
@@ -260,6 +370,24 @@ public:
         for(vector<Entry *>::iterator it = entries.begin(); it != entries.end(); it++)
             result += (*it)->toString() + "\n";
         return result + "}";
+    }
+    uint32_t byteSize() {
+        return size;
+    }
+    vector<string> values(uint32_t base) {
+        vector<string> result;
+        for(int i = 0; i < entries.size(); i++) {
+            uint32_t offset = entries[i]->bitOffset / 8;
+            vector<string> v = entries[i]->type->values(base + offset);
+            if(v.size() == 1)
+                result.push_back(entries[i]->name + " : " + v[0]);
+            else {
+                result.push_back(entries[i]->name + " : {");
+                result.insert(result.end(), v.begin(), v.end());
+                result.push_back("}");
+            }
+        }
+        return result;
     }
 };
 class Enum : public Type {
@@ -301,6 +429,19 @@ public:
             result += (*it)->toString() + "\n";
         return result + "}";
     }
+    uint32_t byteSize() {
+        return 4; //is this coherent?
+    }
+    vector<string> values(uint32_t base) {
+        vector<string> result;
+        int value = *(int *)base;
+        for(int i = 0; i < entries.size(); i++)
+            if(entries[i]->value == value) {
+                result.push_back(entries[i]->name + "(" + patch::toString(value) + ")");
+                break;
+            }
+        return result;
+    }
 };
 class Pointer : public Type {
 public:
@@ -309,6 +450,19 @@ public:
     Pointer(SourceObject *object, Type::TypeNo no, astream &str);
     string toString() {
         return "(*) " + (pointsTo ? pointsTo->toString() : "");
+    }
+    uint32_t byteSize() {
+        return sizeof(void*);
+    }
+    vector<string> values(uint32_t base) {
+        vector<string> result;
+        uint32_t address = *(uint32_t *)base;
+        vector<string> v = pointsTo->values(address);
+        if(v.size() == 1)
+            result.push_back("(*) " + v[0]);
+        else
+            result.insert(result.end(), v.begin(), v.end());
+        return result;
     }
 };
 class ConformantArray : public Type {
@@ -327,6 +481,14 @@ public:
     string toString() {
         return "<conformant>: "; // + dummy->toString();
     }
+    uint32_t byteSize() {
+        return 0;
+    }
+    vector<string> values(uint32_t base) {
+        vector<string> result;
+        result.push_back("<unknwon array>");
+        return result;
+    }
 };
 class FunctionType : public Type {
 public:
@@ -334,6 +496,12 @@ public:
     : Type(T_Function, no)
     { }
     string toString() { return "f" + no.toString(); }
+    uint32_t byteSize() { return sizeof(void *); }
+    vector<string> values(uint32_t base) {
+        vector<string> result;
+        result.push_back("<function>");
+        return result;
+    }
 };
 class Symbol {
 public:
@@ -347,33 +515,43 @@ public:
     } SymType;
     SymType symType;
     string name;
-    uint64_t address; //location, depends on symType
+    uint32_t address; //location, depends on symType
     Type *type;
-    Symbol(SymType symType, string name, Type *type, uint64_t address = 0) {
+    Symbol(SymType symType, string name, Type *type, uint32_t address = 0) {
         this->symType = symType;
         this->name = name;
         this->type = type;
         this->address = address;
     }
-    virtual string toString() {
-        string result(name);
+    string typeString() {
         switch(symType) {
             case S_Typedef:
-                result += ": LSYM<typedef> ";
-                break;
+                return "<Typedef>";
             case S_Local:
-                result += ": LSYM<var> ";
-                break;
+                return "<Local>";
             case S_Param:
-                result += ": PSYM ";
-                break;
+                return "<Param>";
             case S_Global:
-                result += ": GSYM ";
-                break;
+                return "<Global>";
             case S_Function:
-                result += ": FUN ";
+                return "<Function>";
         }
-        return result + "[addr: " + patch::toString((void *)address) + "] " + (type ? type->toString() : "");
+        return "";
+    }
+    virtual string toString() {
+        return name + " " + typeString() + " [addr: " + patch::toString((void *)address) + "] " + (type ? type->toString() : "");
+    }
+    vector<string> values(uint32_t base) {
+        vector<string> result;
+        vector<string> v = type->values(base + address);
+        if(v.size() == 1)
+            result.push_back(name + " " + typeString() + " : " + v[0]);
+        else {
+            result.push_back(name + " " + typeString() + " : {");
+            result.insert(result.end(), v.begin(), v.end());
+            result.push_back("}");
+        }
+        return result;
     }
 };
 class Scope {
@@ -461,7 +639,6 @@ public:
     Type *interpretType(Type::TypeNo no, astream &str);
     Symbol *interpretSymbol(astream &str, uint64_t address);
     Function *interpretFun(astream &str, uint64_t address);
-    //vector<string> getSourceNames(); 
     string toString();
 };
 class Binary {
@@ -476,7 +653,10 @@ public:
     vector<string> getSourceNames();
     uint32_t getLineAddress(string file, int line);
     Function *getFunction(uint32_t address);
+    string getLocation(uint32_t address);
     uint32_t getFunctionAddress(string name);
+    vector<string> getContext(uint32_t ip, uint32_t sp);
+    vector<string> getGlobals();
     string toString();
 };
 #endif //DEFINITIONS_HPP

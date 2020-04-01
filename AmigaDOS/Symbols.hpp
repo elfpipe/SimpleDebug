@@ -13,6 +13,7 @@
 
 using namespace std;
 
+class ElfHandle;
 class ElfSymbols
 {
 public:
@@ -34,7 +35,7 @@ public:
 	bool hasSymbols() { return loaded; }
 	void clear();
 	
-	void readAll(APTR handle);
+	void readAll(ElfHandle *handle);
 	void addSymbol(string name, uint32 value);
 	
 	uint32 valueOf(string name);

@@ -13,6 +13,8 @@
 
 using namespace std;
 
+#include "Handle.hpp"
+
 ULONG amigaos_symbols_callback(struct Hook *hook, struct Task *task, struct SymbolMsg *symbolmsg) {
 	if (symbolmsg->Name) {
 		ElfSymbols *symbols = (ElfSymbols *)hook->h_Data;
@@ -33,16 +35,14 @@ void ElfSymbols::clear() {
 		delete (*it);
 }
 
-void ElfSymbols::readAll(APTR handle) {
-	IElf->OpenElfTags(OET_ElfHandle, handle, TAG_DONE);
+void ElfSymbols::readAll(ElfHandle *elfHandle) {
+	APTR handle = elfHandle->getHandle();
 	
 	struct Hook hook;
 	hook.h_Entry = (ULONG (*)())amigaos_symbols_callback;
 	hook.h_Data =  this;
 
 	IElf->ScanSymbolTable((Elf32_Handle)handle, &hook, NULL);
-
-//    IElf->CloseElfTags((Elf32_Handle)handle, CET_ReClose, FALSE, TAG_DONE);
 	loaded = true;
 }
 

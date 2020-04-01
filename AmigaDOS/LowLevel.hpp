@@ -2,9 +2,10 @@
 #define LOWLEVEL_HPP
 
 #include <proto/exec.h>
+#include <stdint.h>
 
-bool is_readable_address (uint32 addr);
-bool is_writable_address (uint32 addr);
+bool is_readable_address (uint32_t addr);
+bool is_writable_address (uint32_t addr);
 
 typedef enum
 {

@@ -261,7 +261,7 @@ Binary::Binary(string name, SymtabEntry *stab, const char *stabstr, uint64_t sta
 vector<string> Binary::getSourceNames() {
     vector<string> result;
     for(vector<SourceObject *>::iterator it = objects.begin(); it != objects.end(); it++) {
-        result.push_back(name);
+        result.push_back((*it)->name);
         for(vector<Function *>::iterator itf = (*it)->functions.begin(); itf != (*it)->functions.end(); itf++) {
             for(vector<Function::SLine *>::iterator its = (*itf)->lines.begin(); its != (*itf)->lines.end(); its++)
                 if(!patch::contains(result, (*its)->source))
@@ -296,6 +296,15 @@ Function *Binary::getFunction(uint32_t address) {
     }
     return 0;
 }
+string Binary::getLocation(uint32_t address) {
+    Function *function = getFunction(address);
+    if(function) for(int k = 0; k < function->lines.size(); k++) {
+        Function::SLine *sline = function->lines[k];
+        if(function->address + sline->address == address)
+            return sline->source + " : line " + patch::toString(sline->line);
+    }
+    return string();
+}
 uint32_t Binary::getFunctionAddress(string name) {
     for(int i = 0; i < objects.size(); i++) {
         SourceObject *object = objects[i];
@@ -306,6 +315,45 @@ uint32_t Binary::getFunctionAddress(string name) {
         }
     }
     return 0x0;
+}
+vector<string> Binary::getContext(uint32_t ip, uint32_t sp) {
+    vector<string> result;
+    Function *function = getFunction(ip);
+    if(!function) return result;
+
+    /* parameters */
+    for(int i = 0; i < function->params.size(); i++) {
+        vector<string> values = function->params[i]->values(sp);
+        result.insert(result.end(), values.begin(), values.end());
+    }
+
+    /* locals */
+    Scope *scope = function->locals[0];
+    if(scope) scope = scope->getScope(ip);
+    while(scope) {
+        for(int i = 0; i < scope->children.size(); i++) {
+            for(int j = 0; j < scope->symbols.size(); j++) {
+                vector<string> values = scope->symbols[j]->values(sp);
+                result.insert(result.end(), values.begin(), values.end());
+            }
+        }
+        scope = scope->parent;
+    }
+    return result;
+}
+vector<string> Binary::getGlobals() {
+    vector<string> result;
+    for(int i = 0; i < objects.size(); i++) {
+        SourceObject *object = objects[i];
+        for(int j = 0; j < object->globals.size(); j++) {
+            Symbol *symbol = object->globals[j];
+            if(symbol->symType == Symbol::S_Global) {
+                vector<string> values = symbol->values(0x0);
+                result.insert(result.begin(), values.begin(), values.end());
+            }
+        }
+    }
+    return result;
 }
 string Binary::toString() {
     string result = "<Binary> : [ STAB: 0x" + patch::toString((void*)stab) + " STABSTR: 0x" + patch::toString((void *)stabstr) + " STABSIZE: " + patch::toString((int)stabsize) + "] -- {\n";

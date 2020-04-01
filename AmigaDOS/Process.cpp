@@ -12,14 +12,14 @@
 
 using namespace std;
 
-ExceptionContext AmigaDOSProcess::context;
-struct MsgPort *AmigaDOSProcess::port = 0;
-uint8_t AmigaDOSProcess::signal = 0x0;
+ExceptionContext AmigaProcess::context;
+struct MsgPort *AmigaProcess::port = 0;
+uint8_t AmigaProcess::signal = 0x0;
 
 struct DebugIFace *IDebug = 0;
 struct MMUIFace *IMMU = 0;
 
-void AmigaDOSProcess::init()
+void AmigaProcess::init()
 {
 	IDebug = (struct DebugIFace *)IExec->GetInterface ((struct Library *)SysBase, "debug", 1, 0);
 	if (!IDebug) {
@@ -35,7 +35,7 @@ void AmigaDOSProcess::init()
 	signal = IExec->AllocSignal(-1);
 }
 
-void AmigaDOSProcess::cleanup ()
+void AmigaProcess::cleanup ()
 {
 	if (IDebug)
 		IExec->DropInterface((struct Interface *)IDebug);
@@ -49,7 +49,7 @@ void AmigaDOSProcess::cleanup ()
 	IExec->FreeSignal(signal);
 }
 
-APTR AmigaDOSProcess::load(string path, string command, string arguments)
+APTR AmigaProcess::load(string path, string command, string arguments)
 {
 	BPTR lock = IDOS->Lock(path.c_str(), SHARED_LOCK);
 	if (!lock) {
@@ -109,9 +109,8 @@ APTR AmigaDOSProcess::load(string path, string command, string arguments)
     return handle;
 }
 
-ULONG AmigaDOSProcess::amigaos_debug_callback (struct Hook *hook, struct Task *currentTask, struct KernelDebugMessage *dbgmsg)
+ULONG AmigaProcess::amigaos_debug_callback (struct Hook *hook, struct Task *currentTask, struct KernelDebugMessage *dbgmsg)
 {
-
     struct ExecIFace *IExec = (struct ExecIFace *)((struct ExecBase *)SysBase)->MainInterface;
 	uint32 traptype = 0;
 
@@ -156,6 +155,7 @@ ULONG AmigaDOSProcess::amigaos_debug_callback (struct Hook *hook, struct Task *c
 				sendSignal = true; //it's a trap
 			} else {
 				message->type = MSGTYPE_EXCEPTION;
+				sendSignal = true;
 			}
 
 			IExec->PutMsg (port, (struct Message *)message);
@@ -203,7 +203,7 @@ ULONG AmigaDOSProcess::amigaos_debug_callback (struct Hook *hook, struct Task *c
 	return ret;
 }
 
-void AmigaDOSProcess::hookOn()
+void AmigaProcess::hookOn()
 {
 	struct HookData *data = new HookData(IExec->FindTask(0), signal);
 
@@ -213,47 +213,47 @@ void AmigaDOSProcess::hookOn()
 	IDebug->AddDebugHook((struct Task *)process, &hook);
 }
 
-void AmigaDOSProcess::hookOff()
+void AmigaProcess::hookOff()
 {
 	IDebug->AddDebugHook((struct Task*)process, 0);
 }
 
-bool AmigaDOSProcess::handleMessages() {
+bool AmigaProcess::handleMessages() {
 	bool exit = false;
 	DebugMessage *message = (DebugMessage *)IExec->GetMsg(port);
 	while(message) {
 		switch(message->type) {
-			case AmigaDOSProcess::MSGTYPE_EXCEPTION:
+			case AmigaProcess::MSGTYPE_EXCEPTION:
 				cout << "==EXCEPTION (ip = 0x" << (void *)ip() << ")\n";
 				break;
 
-			case AmigaDOSProcess::MSGTYPE_TRAP:
+			case AmigaProcess::MSGTYPE_TRAP:
 				cout << "==TRAP (ip = 0x" << (void *)ip() << ")\n";
 				break;
 
-			case AmigaDOSProcess::MSGTYPE_CRASH:
+			case AmigaProcess::MSGTYPE_CRASH:
 				cout << "==CRASH (ip = 0x" << (void *)ip() << ")\n";
 				break;
 
-			case AmigaDOSProcess::MSGTYPE_OPENLIB:
+			case AmigaProcess::MSGTYPE_OPENLIB:
 				cout << "==OPENLIB\n";
 				break;
 
-			case AmigaDOSProcess::MSGTYPE_CLOSELIB:
+			case AmigaProcess::MSGTYPE_CLOSELIB:
 				cout << "==CLOSELIB\n";
 				break;
 
-			case AmigaDOSProcess::MSGTYPE_CHILDDIED:
+			case AmigaProcess::MSGTYPE_CHILDDIED:
 				cout << "Child has DIED (exit)\n";
 				exit = true;
 				break;
 		}
-		message = (struct AmigaDOSProcess::DebugMessage *)IExec->GetMsg(port);
+		message = (struct AmigaProcess::DebugMessage *)IExec->GetMsg(port);
 	}
 	return exit;
 }
 
-APTR AmigaDOSProcess::attach(string name)
+APTR AmigaProcess::attach(string name)
 {
 	struct Process *_process = (struct Process *)IExec->FindTask(name.c_str());
 	if(!_process) return 0;
@@ -295,7 +295,7 @@ APTR AmigaDOSProcess::attach(string name)
 	return handle;
 }
 
-void AmigaDOSProcess::detach()
+void AmigaProcess::detach()
 {
 	hookOff();
 	
@@ -304,24 +304,24 @@ void AmigaDOSProcess::detach()
 	attached = false;
 }
 
-void AmigaDOSProcess::readContext ()
+void AmigaProcess::readContext ()
 {
 	IDebug->ReadTaskContext  ((struct Task *)process, &context, RTCF_SPECIAL|RTCF_STATE|RTCF_VECTOR|RTCF_FPU);
 }
 
-void AmigaDOSProcess::writeContext ()
+void AmigaProcess::writeContext ()
 {
 	IDebug->WriteTaskContext ((struct Task *)process, &context, RTCF_SPECIAL|RTCF_STATE|RTCF_VECTOR|RTCF_FPU);
 }
 
 // ------------------------------------------------------------------ //
 
-void AmigaDOSProcess::skip() {
+void AmigaProcess::skip() {
 	context.ip += 4;
 	IDebug->WriteTaskContext((struct Task *)process, &context, RTCF_STATE);
 }
 
-void AmigaDOSProcess::step()
+void AmigaProcess::step()
 {
 	Tracer tracer(process, &context);
 	tracer.activate();
@@ -332,17 +332,17 @@ void AmigaDOSProcess::step()
 
 // --------------------------------------------------------------------------- //
 
-void AmigaDOSProcess::go()
+void AmigaProcess::go()
 {
     IExec->RestartTask((struct Task *)process, 0);
 }
 
-void AmigaDOSProcess::wait()
+void AmigaProcess::wait()
 {
 	IExec->Wait(1 << signal);
 }
 
-void AmigaDOSProcess::wakeUp()
+void AmigaProcess::wakeUp()
 {
 	IExec->Signal((struct Task *)IExec->FindTask(0), signal);
 }
