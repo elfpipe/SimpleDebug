@@ -1,2 +1,2 @@
 # SimpleDebug
-Simple iterations over a debugger for AmigaOS
+Simple debugger for AmigaOS
