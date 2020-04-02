@@ -69,20 +69,20 @@ APTR AmigaProcess::load(string path, string command, string arguments)
     process = IDOS->CreateNewProcTags(
 		NP_Seglist,					seglist,
 //		NP_Entry,					foo,
-		NP_FreeSeglist,				TRUE,
+		NP_FreeSeglist,				true,
 		NP_Name,					strdup(command.c_str()),
 		NP_CurrentDir,				lock,
 		NP_ProgramDir,				homelock,
 		NP_StackSize,				2000000,
-		NP_Cli,						TRUE,
-		NP_Child,					TRUE,
+		NP_Cli,						true,
+		NP_Child,					true,
 		NP_Arguments,				arguments.c_str(),
 		NP_Input,					IDOS->Input(),
-		NP_CloseInput,				FALSE,
-		NP_Output,					pipe.getWrite(),
-		NP_CloseOutput,				FALSE,
+		NP_CloseInput,				false,
+		NP_Output,					IDOS->Output(), //pipe.getWrite(),
+		NP_CloseOutput,				false,
 		NP_Error,					IDOS->ErrorOutput(),
-		NP_CloseError,				FALSE,
+		NP_CloseError,				false,
 		NP_NotifyOnDeathSigTask,	IExec->FindTask(0),
 		TAG_DONE
 	);
@@ -345,4 +345,9 @@ void AmigaProcess::wait()
 void AmigaProcess::wakeUp()
 {
 	IExec->Signal((struct Task *)IExec->FindTask(0), signal);
+}
+
+bool AmigaProcess::isDead() {
+	uint32_t signals = IExec->SetSignal(0, 0);
+	return signals & SIGF_CHILD;
 }

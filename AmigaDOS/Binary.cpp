@@ -296,14 +296,24 @@ Function *Binary::getFunction(uint32_t address) {
     }
     return 0;
 }
-string Binary::getLocation(uint32_t address) {
+Function::SLine *Binary::getLocation(uint32_t address) {
     Function *function = getFunction(address);
     if(function) for(int k = 0; k < function->lines.size(); k++) {
         Function::SLine *sline = function->lines[k];
         if(function->address + sline->address == address)
-            return sline->source + " : line " + patch::toString(sline->line);
+            return sline;
     }
+    return 0;
+}
+string Binary::getSourceFile(uint32_t address) {
+    Function::SLine *line = getLocation(address);
+    if (line) return line->source;
     return string();
+}
+int Binary::getSourceLine(uint32_t address) {
+    Function::SLine *line = getLocation(address);
+    if (line) return line->line;
+    return 0;
 }
 uint32_t Binary::getFunctionAddress(string name) {
     for(int i = 0; i < objects.size(); i++) {

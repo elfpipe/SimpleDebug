@@ -13,7 +13,8 @@ IF(AMIGA)
         AmigaDOS/Strings.cpp
         AmigaDOS/Tracer.cpp
         AmigaDOS/Pipe.cpp
-        AmigaDOS/async.c
+    #    AmigaDOS/async.c
+        AmigaDOS/Stacktracer.cpp
     )
 
     SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -athread=native")
@@ -21,6 +22,6 @@ IF(AMIGA)
     add_executable(SimpleDebug ${SOURCES})
     target_link_libraries(SimpleDebug -lauto)
 
-    add_executable(PipeTest AmigaDOS/Test/pipetest.cpp AmigaDOS/Pipe.cpp)
-    target_link_libraries(SimpleDebug -lauto)
+    #add_executable(PipeTest AmigaDOS/Test/pipetest.cpp AmigaDOS/Pipe.cpp)
+    #target_link_libraries(SimpleDebug -lauto)
 ENDIF()

@@ -5,27 +5,22 @@
 #include "Binary.hpp"
 #include "Handle.hpp"
 
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <algorithm>
-#include <iterator>
-#include <vector>
-#include <string.h>
+#include "Stacktracer.hpp"
+#include "Strings.hpp"
 
-#include <proto/dos.h>
+#include <iostream>
+//#include <sstream>
+#include <string>
+//#include <algorithm>
+//#include <iterator>
+#include <vector>
+//#include <string.h>
+
+//#include <proto/dos.h>
+//#include <stdio.h>
+
 
 using namespace std;
-
-template <class Container>
-void split2(const string& str, Container& cont, char delim = ' ')
-{
-    stringstream ss(str);
-    string token;
-    while (getline(ss, token, delim)) {
-        cont.push_back(token);
-    }
-}
 
 string concat(vector<string> strs, int index)
 {
@@ -35,17 +30,24 @@ string concat(vector<string> strs, int index)
 	return result;
 }
 
+string vectorToString(vector<string> v) {
+	string result;
+	for(int i = 0; i < v.size(); i++)
+		result += v[i] + "\n";
+	return result;
+}
 // ---------------------------------------------------------------------------- //
 
 vector<string> getInput()
 {
-	vector<string> cmdArgs;
-
 	cout << "> ";
 
+	char buffer[1024];
 	string command;
 	getline(cin, command);
-	split2(command, cmdArgs);
+
+	astream str(command);
+	vector<string> cmdArgs = str.split(' ');
 
 	return cmdArgs;
 }
@@ -65,16 +67,16 @@ public:
 	Debugger() {
 	}
 	~Debugger() {
-		//if(handle) delete handle; //Why?
+		if(handle) delete handle;
 		if(binary) delete binary;
 	}
 	void open(APTR _handle, string name) {
 		handle = new ElfHandle(_handle, name);
-		handle->performRelocation();
 
 		symbols.readAll(handle);
 
-		binary = new Binary(handle->getName(), (SymtabEntry *)handle->getStabSection(), handle->getStabstrSection(), handle->getStabsSize());
+		if(handle->performRelocation())
+			binary = new Binary(handle->getName(), (SymtabEntry *)handle->getStabSection(), handle->getStabstrSection(), handle->getStabsSize());
 	}
 	bool load(string file, string args) {
 		APTR handle = process.load("", file, args);
@@ -113,26 +115,25 @@ public:
 		if(address)	set ? breaks.insert(address) : breaks.remove(address);
 		return address != 0;
 	}
-	bool start() {
+	void start() {
 		process.step();
 
 		breaks.activate();
 		process.go();
 		process.wait();
 		breaks.deactivate();
-
-		cout << location() << "\n";
-		return handleMessages();
+	}
+	void wait() {
+		process.wait();
 	}
 	void skip() {
 		process.skip();
 	}
-	bool step() {
+	void step() {
 		process.step();
-		return handleMessages();
 	}
-	bool stepOver() {
-		if(!binary) return false;
+	void stepOver() {
+		if(!binary) return;
 
 		Breaks linebreaks;
 		Function *function = binary->getFunction(process.ip());
@@ -149,22 +150,15 @@ public:
 
 		linebreaks.deactivate();
 		breaks.deactivate();
-
-		cout << location() << "\n";
-		return handleMessages();
 	}
-	bool stepInto() {
-		if(!binary) return false;
+	void stepInto() {
+		if(!binary) return;
 
-		bool atLine = false;
-		while(!atLine) {
+		process.step();
+		while(!binary->getSourceLine(process.ip()))
 			process.step();
-			atLine = binary->getLocation(process.ip()).size() > 0;
-		}
-		cout << location() << "\n";
-		return handleMessages();
 	}
-	bool stepOut() {
+	void stepOut() {
 		Breaks outBreak;
 		outBreak.insert(process.lr());
 
@@ -178,15 +172,12 @@ public:
 
 		outBreak.deactivate();
 		breaks.deactivate();
-
-		cout << location() << "\n";
-		return handleMessages();
 	}
 	vector<string> context() {
-		return binary->getContext(process.ip(), process.sp());
+		return binary ? binary->getContext(process.ip(), process.sp()) : vector<string>();
 	}
 	vector<string> globals() {
-		return binary->getGlobals(symbols);
+		return binary ? binary->getGlobals(symbols) : vector<string>();
 	}
 	uint32_t getIp() {
 		return process.ip();
@@ -194,13 +185,36 @@ public:
 	uint32_t getSp() {
 		return process.sp();
 	}
-	string location() {
-		return binary->getLocation(process.ip());
+	string getSourceFile() {
+		return binary ? binary->getSourceFile(process.ip()) : string();
+	}
+	int getSourceLine() {
+		return binary ? binary->getSourceLine(process.ip()) : 0;
+	}
+	string printLocation() {
+		return binary ? binary->getSourceFile(process.ip()) + " at line " + patch::toString(binary->getSourceLine(process.ip())) : string();
+	}
+	bool isDead() {
+		return process.isDead();
 	}
 	vector<string> emptyPipe() {
 		return process.emptyPipe();
 	}
+	vector<string> stacktrace() {
+		Stacktracer stacktracer;
+		return stacktracer.stacktrace((Task *)process.getProcess(), getSp());
+	}
 };
+
+#if 0
+int main() {
+	Debugger debugger;
+	debugger.load("C:dir", "");
+	debugger.start();
+	cout << "Done.\n";
+	return 0;
+}
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -210,10 +224,12 @@ int main(int argc, char *argv[])
 
 	bool exit = false;
 	while(!exit) {
-		vector<string> args = getInput();
+		if(debugger.isDead()) break;
 
-		exit = debugger.handleMessages();
-		if (exit) break;
+		if(debugger.getSourceLine())
+			cout << debugger.printLocation() << "\n";
+
+		vector<string> args = getInput();
 
 		if(args.size() > 0) 
 		switch(char c = args[0][0]) {
@@ -245,38 +261,44 @@ int main(int argc, char *argv[])
 				attached = false;
 				break;
 
-			case 'n': {
-				cout << "-- Source files: --\n";
-				vector<string> names = debugger.sourceFiles();
-				for(int i = 0; i < names.size(); i++)
-					cout << names[i] << "\n";
-				break;
-			}
-
-			case 'i':
-				cout << "ip: " << (void *)debugger.getIp() << "\n";
-				break;
-
-			case 'v':
-				cout << "sp : 0x" << (void *)debugger.getSp() << "\n";
-				break;
-
-            case 'o': {
-                cout << "--Elf symbols:--\n";
-				vector<string> symbols = debugger.elfSymbols();
-				for(int i = 0; i < symbols.size(); i++)
-                	cout << symbols[i] << "\n";
-                break;
-			}
 			case 'p':
-				cout << "--Binary structure:--\n";
-				cout << debugger.binaryStructure();
+				if(args.size () < 2) {
+					cout << "Missing argument\n";
+					break;
+				}
+				if(!args[1].compare("sources")) {
+					cout << "-- Source files: --\n";
+					cout << vectorToString(debugger.sourceFiles());
+					break;
+				}
+				if(!args[1].compare("ip")) {
+					cout << "ip: " << (void *)debugger.getIp() << "\n";
+					break;
+				}
+				if(!args[1].compare("sp")) {
+					cout << "sp : 0x" << (void *)debugger.getSp() << "\n";
+				}
+				if(!args[1].compare("sym")) {
+					cout << "--Elf symbols:--\n";
+					cout << vectorToString(debugger.elfSymbols());
+					break;
+				}
+				if(!args[1].compare("struct")) {
+					cout << "--Binary structure:--\n";
+					cout << debugger.binaryStructure();
+					break;
+				}
+				if(!args[1].compare("stack")) {
+					cout << "--Stack trace:--\n";
+					cout << vectorToString(debugger.stacktrace());
+					break;
+				}
 				break;
 
 			case 'b':
 			case 'c':
 				if(args.size() < 2) {
-					cout << "Missing argument";
+					cout << "Missing argument\n";
 				} else if (args.size() == 2) {
 					if(debugger.breakpoint(args[1], c == 'b'))
 						cout << "Breakpoint set\n";
@@ -294,7 +316,7 @@ int main(int argc, char *argv[])
 				
 			case 's': {
 				cout << "Start\n";
-				exit = debugger.start();
+				debugger.start();
 				break;
 			}
 
@@ -305,7 +327,7 @@ int main(int argc, char *argv[])
 
 			case 'z':
 				cout << "Step\n";
-				exit = debugger.step();
+				debugger.step();
 				break;
 
 			case 'w': { // write context data
@@ -335,16 +357,21 @@ int main(int argc, char *argv[])
 					cout << "--] " << output[i] << "\n";
 				break;
 			}
+
+			case 'f': //write place in code
+
+				break;
+
 			case '1': // step over
-				debugger.stepOver();
+				if(loaded) debugger.stepOver();
 				break;
 
 			case '2': // step into
-				debugger.stepInto();
+				if(loaded) debugger.stepInto();
 				break;
 
 			case '3': // step out
-				debugger.stepOut();
+				if(loaded) debugger.stepOut();
 				break;
 
 			case 'q':
@@ -358,11 +385,12 @@ int main(int argc, char *argv[])
 				cout << "a <name>: attach to process in memory\n";
 				cout << "d: detach from child\n";
 				cout << "\n";
-				cout << "n: print source file names\n";
-				cout << "i: print instruction pointer\n";
-				cout << "v: print stack pointer\n";
-				cout << "o: print os symbol list\n";
-                cout << "p: print binary structure\n";
+				cout << "p sources: print source file names\n";
+				cout << "p ip: print instruction pointer\n";
+				cout << "p sp: print stack pointer\n";
+				cout << "p sym: print elf symbol list\n";
+                cout << "p struct: print binary structure\n";
+				cout << "p stack: print stack trace\n";
 				cout << "\n";
 				cout << "b <file> <line>: insert breakpoint\n";
 				cout << "b <function>: insert breakpoint\n";
@@ -374,6 +402,7 @@ int main(int argc, char *argv[])
 				cout << "\n";
 				cout << "w: write context data\n";
 				cout << "g: write global symbols data\n";
+				cout << "f: write text file location\n";
 				cout << "\n";
 				cout << "e: empty output pipe\n";
 				cout << "\n";
@@ -388,8 +417,6 @@ int main(int argc, char *argv[])
 				break;
 		}
 	}
-				vector<string> output = debugger.emptyPipe();
-				for(int i = 0; i < output.size(); i++)
-					cout << "--] " << output[i] << "\n";
+	cout << "Farewell.\n";
     return 0;
 }

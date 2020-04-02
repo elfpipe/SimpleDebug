@@ -47,7 +47,7 @@ public:
 	};
 
 private:
-    struct Process *process;
+    struct Process *process = 0;
 	struct Hook hook;
 	static ExceptionContext context;
 	bool exists;
@@ -92,6 +92,8 @@ public:
 	void wait();
 	void wakeUp();
 
-	vector<string> emptyPipe() { return pipe.emptyPipe(); }
+	bool isDead();
+	Process *getProcess() { return process; }
+	vector<string> emptyPipe() { return vector<string>(); } //pipe.emptyPipe(); }
 };
 #endif

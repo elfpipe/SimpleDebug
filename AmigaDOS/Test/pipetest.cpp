@@ -8,7 +8,7 @@
 int main() {
     Pipe pipe;
 
-#if 0
+#if 1
 	BPTR seglist = IDOS->LoadSeg ("C:dir");
     if(!seglist) {
         cout << "Failed to load\n";
@@ -17,7 +17,7 @@ int main() {
 
     Process *process = IDOS->CreateNewProcTags(
 		NP_Seglist,					seglist,
-		NP_FreeSeglist,				TRUE,
+		NP_FreeSeglist,				true,
 		NP_Cli,						true,
 		NP_Child,					true,
 		NP_Output,					pipe.getWrite(),
