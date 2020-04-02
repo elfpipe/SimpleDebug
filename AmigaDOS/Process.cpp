@@ -79,7 +79,7 @@ APTR AmigaProcess::load(string path, string command, string arguments)
 		NP_Arguments,				arguments.c_str(),
 		NP_Input,					IDOS->Input(),
 		NP_CloseInput,				FALSE,
-		NP_Output,					IDOS->Output(), //pipe_get_write_end(),
+		NP_Output,					pipe.getWrite(),
 		NP_CloseOutput,				FALSE,
 		NP_Error,					IDOS->ErrorOutput(),
 		NP_CloseError,				FALSE,

@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <string>
 
+#include "Pipe.hpp"
+
 using namespace std;
 
 struct KernelDebugMessage
@@ -55,6 +57,8 @@ private:
 	static struct MsgPort *port;
 	static uint8_t signal;
 
+	Pipe pipe;
+
 private:
 	static ULONG amigaos_debug_callback (struct Hook *hook, struct Task *currentTask, struct KernelDebugMessage *dbgmsg);
 
@@ -87,5 +91,7 @@ public:
     void go();
 	void wait();
 	void wakeUp();
+
+	vector<string> emptyPipe() { return pipe.emptyPipe(); }
 };
 #endif

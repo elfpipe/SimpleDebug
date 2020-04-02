@@ -11,7 +11,7 @@ ElfHandle::ElfHandle (APTR handle, string name, bool isOpen) {
 }
 
 ElfHandle::~ElfHandle() {
-	close();
+	//close();
 }
 
 void ElfHandle::lock()

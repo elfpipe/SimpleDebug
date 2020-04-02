@@ -65,7 +65,7 @@ public:
 	Debugger() {
 	}
 	~Debugger() {
-		if(handle) delete handle;
+		//if(handle) delete handle; //Why?
 		if(binary) delete binary;
 	}
 	void open(APTR _handle, string name) {
@@ -93,20 +93,22 @@ public:
 		return process.handleMessages();
 	}
 	vector<string> sourceFiles() {
-		return binary->getSourceNames();
+		return binary ? binary->getSourceNames() : vector<string>();
 	}
 	vector<string> elfSymbols() {
 		return symbols.printable();
 	}
 	string binaryStructure() {
-		return binary->toString();
+		return binary ? binary->toString() : string();
 	}
 	bool breakpoint(string file, int line, bool set) {
+		if(!binary) return false;
 		uint32_t address = binary->getLineAddress(file, line);
 		if(address)	set ? breaks.insert(address) : breaks.remove(address);
 		return address != 0;
 	}
 	bool breakpoint(string function, bool set) {
+		if(!binary) return false;
 		uint32_t address = binary->getFunctionAddress(function);
 		if(address)	set ? breaks.insert(address) : breaks.remove(address);
 		return address != 0;
@@ -119,7 +121,7 @@ public:
 		process.wait();
 		breaks.deactivate();
 
-		cout << "At: " << location() << "\n";
+		cout << location() << "\n";
 		return handleMessages();
 	}
 	void skip() {
@@ -130,6 +132,8 @@ public:
 		return handleMessages();
 	}
 	bool stepOver() {
+		if(!binary) return false;
+
 		Breaks linebreaks;
 		Function *function = binary->getFunction(process.ip());
 		for(int i = 0; i < function->lines.size(); i++) {
@@ -146,16 +150,18 @@ public:
 		linebreaks.deactivate();
 		breaks.deactivate();
 
-		cout << "At: " << location() << "\n";
+		cout << location() << "\n";
 		return handleMessages();
 	}
 	bool stepInto() {
+		if(!binary) return false;
+
 		bool atLine = false;
 		while(!atLine) {
 			process.step();
 			atLine = binary->getLocation(process.ip()).size() > 0;
 		}
-		cout << "At: " << location() << "\n";
+		cout << location() << "\n";
 		return handleMessages();
 	}
 	bool stepOut() {
@@ -173,7 +179,7 @@ public:
 		outBreak.deactivate();
 		breaks.deactivate();
 
-		cout << "At: " << location() << "\n";
+		cout << location() << "\n";
 		return handleMessages();
 	}
 	vector<string> context() {
@@ -191,11 +197,16 @@ public:
 	string location() {
 		return binary->getLocation(process.ip());
 	}
+	vector<string> emptyPipe() {
+		return process.emptyPipe();
+	}
 };
 
 int main(int argc, char *argv[])
 {
 	Debugger debugger;
+	bool loaded = false;
+	bool attached = false;
 
 	bool exit = false;
 	while(!exit) {
@@ -207,14 +218,13 @@ int main(int argc, char *argv[])
 		if(args.size() > 0) 
 		switch(char c = args[0][0]) {
 			case 'l': {
-				bool success = false;
 				if(args.size() < 2)
 					cout << "Missing argument(s)\n";
 				else if(args.size() >= 3)
-					success = debugger.load(args[1], concat(args, 2));
+					loaded = debugger.load(args[1], concat(args, 2));
 				else
-					success = debugger.load(args[1], "");
-				if(success) cout << "Process loaded\n";
+					loaded = debugger.load(args[1], "");
+				if(loaded) cout << "Process loaded\n";
 			}
 			break;
 
@@ -222,15 +232,17 @@ int main(int argc, char *argv[])
 				if(args.size() < 2) {
 					cout << "Missing argument\n";
 				} else {
-					if(debugger.attach(args[1]))
+					if(loaded = debugger.attach(args[1]))
 						cout << "Attached to process\n";
+					attached = loaded;
 				}
 			}
 			break;
 
 			case 'd':
 				cout << "Detach\n";
-				debugger.detach();
+				if(attached) debugger.detach();
+				attached = false;
 				break;
 
 			case 'n': {
@@ -317,6 +329,12 @@ int main(int argc, char *argv[])
                 break;
 			}
 
+			case 'e': {
+				vector<string> output = debugger.emptyPipe();
+				for(int i = 0; i < output.size(); i++)
+					cout << "--] " << output[i] << "\n";
+				break;
+			}
 			case '1': // step over
 				debugger.stepOver();
 				break;
@@ -342,6 +360,7 @@ int main(int argc, char *argv[])
 				cout << "\n";
 				cout << "n: print source file names\n";
 				cout << "i: print instruction pointer\n";
+				cout << "v: print stack pointer\n";
 				cout << "o: print os symbol list\n";
                 cout << "p: print binary structure\n";
 				cout << "\n";
@@ -356,6 +375,8 @@ int main(int argc, char *argv[])
 				cout << "w: write context data\n";
 				cout << "g: write global symbols data\n";
 				cout << "\n";
+				cout << "e: empty output pipe\n";
+				cout << "\n";
 				cout << "1: step over\n";
 				cout << "2: step into\n";
 				cout << "3: step out\n";
@@ -367,5 +388,8 @@ int main(int argc, char *argv[])
 				break;
 		}
 	}
+				vector<string> output = debugger.emptyPipe();
+				for(int i = 0; i < output.size(); i++)
+					cout << "--] " << output[i] << "\n";
     return 0;
 }
