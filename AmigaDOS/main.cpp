@@ -7,18 +7,12 @@
 
 #include "Stacktracer.hpp"
 #include "Strings.hpp"
+#include "TextFile.hpp"
+#include "Binary.hpp"
 
 #include <iostream>
-//#include <sstream>
 #include <string>
-//#include <algorithm>
-//#include <iterator>
 #include <vector>
-//#include <string.h>
-
-//#include <proto/dos.h>
-//#include <stdio.h>
-
 
 using namespace std;
 
@@ -204,6 +198,19 @@ public:
 		Stacktracer stacktracer;
 		return stacktracer.stacktrace((Task *)process.getProcess(), getSp());
 	}
+	vector<string> functionSource() {
+		vector<string> result;
+		string source = binary->getSourceFile(process.ip());
+		if(source.size() == 0) return result;
+		TextFile file(source);
+		Function *function = binary->getFunction(process.ip());
+		if(!function) return result;
+		int line = function->lines[0]->line;
+		for(int i = 0; i < function->lines.size(); i++)
+			while(line <= function->lines[i]->line)
+				result.push_back(file.getLine(line++));
+		return result;
+	}
 };
 
 #if 0
@@ -359,7 +366,8 @@ int main(int argc, char *argv[])
 			}
 
 			case 'f': //write place in code
-
+				cout << debugger.printLocation() << ":\n";
+				cout << vectorToString(debugger.functionSource());
 				break;
 
 			case '1': // step over

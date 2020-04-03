@@ -22,6 +22,9 @@ IF(AMIGA)
     add_executable(SimpleDebug ${SOURCES})
     target_link_libraries(SimpleDebug -lauto)
 
+    add_executable(Pipe AmigaDOS/Test/amiga_pipe.c)
+    target_link_libraries(Pipe -lauto)
+
     #add_executable(PipeTest AmigaDOS/Test/pipetest.cpp AmigaDOS/Pipe.cpp)
     #target_link_libraries(SimpleDebug -lauto)
 ENDIF()
