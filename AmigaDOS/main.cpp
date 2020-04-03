@@ -207,8 +207,24 @@ public:
 		if(!function) return result;
 		int line = function->lines[0]->line;
 		for(int i = 0; i < function->lines.size(); i++)
-			while(line <= function->lines[i]->line)
-				result.push_back(file.getLine(line++));
+			while(line <= function->lines[i]->line) {
+				string l = patch::toString(line);
+				string s;
+				for(int n = s.size(); n < 8; n++)
+					s += " ";
+				s += l;
+				if (line == function->lines[i]->line) {
+					if(line == binary->getSourceLine(process.ip()))
+						s += " -->: ";
+					else if(breaks.isBreak(function->address + function->lines[i]->address))
+						s += " [*]: ";
+					else
+						s += "    : ";
+				}
+				else
+					s += "    : ";
+				result.push_back(s + file.getLine(line++));
+			}
 		return result;
 	}
 };
