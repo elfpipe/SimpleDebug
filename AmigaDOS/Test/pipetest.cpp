@@ -15,13 +15,15 @@ int main() {
         return -1;
     }
 
+    BPTR file = IDOS->Open("output.txt", MODE_NEWFILE);
+
     Process *process = IDOS->CreateNewProcTags(
 		NP_Seglist,					seglist,
 		NP_FreeSeglist,				true,
 		NP_Cli,						true,
 		NP_Child,					true,
-		NP_Output,					pipe.getWrite(),
-        NP_CloseOutput,             false,
+		NP_Output,					file, //pipe.getWrite(),
+        NP_CloseOutput,             true,
 		NP_NotifyOnDeathSigTask,	IExec->FindTask(0),
 		TAG_DONE
 	);
