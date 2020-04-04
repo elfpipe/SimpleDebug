@@ -283,7 +283,7 @@ uint32_t Binary::getLineAddress(string file, int line) {
             for(int k = 0; k < function->lines.size(); k++) {
                 Function::SLine *sline = function->lines[k];
                 if(!sline->source.compare(file) && sline->line == line)
-                    return sline->address;
+                    return function->address + sline->address;
             }
         }
     }
