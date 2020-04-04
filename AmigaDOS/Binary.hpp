@@ -117,7 +117,7 @@ public:
         R_Defined
     } RangeType;
     RangeType rangeType;
-    uint64_t lower, upper;
+    int64_t lower, upper;
     Range(Type::TypeNo no, astream &str)
     : Type(T_Range, no)
     {
