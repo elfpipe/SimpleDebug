@@ -575,7 +575,11 @@ public:
     uint64_t begin, end;
     vector<Symbol *> symbols;
     vector<Scope *> children;
-    Scope(Scope *parent, uint64_t begin) { this->parent = parent; this->begin = begin; }
+    Scope(Scope *parent, uint64_t begin, vector<Symbol *> symbols) {
+        this->parent = parent;
+        this->begin = begin;
+        this->symbols = symbols;
+    }
     string toString() {
         string result = "LBRAC [0x" + patch::toString((void *)begin) + "] -- {\n";
         for(vector<Symbol *>::iterator it = symbols.begin(); it != symbols.end(); it++)

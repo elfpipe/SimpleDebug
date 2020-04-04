@@ -169,6 +169,7 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
     string source = name;
     Function *function = 0;
     Scope *scope = 0;
+    vector<Symbol *> symbols;
 	while ((uint32_t)sym < (uint32_t)stab + stabsize) {
         astream str(string(stabstr + sym->n_strx));
 		switch (sym->n_type) {
@@ -182,7 +183,7 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
 			case N_LSYM: {
                 Symbol *symbol = interpretSymbol(str, sym->n_value);
                 if(function)
-                    scope->symbols.push_back(symbol);
+                    symbols.push_back(symbol);
                 else
                     locals.push_back(symbol);
                 break;
@@ -196,8 +197,9 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
             case N_FUN: {
                 function = interpretFun(str, sym->n_value);
                 if(function) {
-                    function->locals.push_back(scope = new Scope(0, function->address)); //there has to be a scope
+                    function->locals.push_back(scope = new Scope(0, function->address, symbols)); //there has to be a scope
                     functions.push_back(function);
+                    symbols.clear();
                 }
                 break;
             }
@@ -211,7 +213,8 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
                 break;
             case N_LBRAC: {
                 if(scope)
-                    scope->children.push_back(scope = new Scope(scope, function->address + sym->n_value));
+                    scope->children.push_back(scope = new Scope(scope, function->address + sym->n_value, symbols));
+                symbols.clear();
                 break;
             }
             case N_RBRAC:
@@ -219,8 +222,10 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
                     scope->end = function->address + sym->n_value;
                     scope = scope->parent;
                 }
-                if(scope && scope->parent == 0) //hackaround
+                if(scope && scope->parent == 0) { //hackaround
                     scope->end = scope->children.size() ? scope->children[0]->end : function->lines.size() ? function->lines[function->lines.size()-1]->address : function->address;
+                    function = 0;
+                }
                 break;
             default:
                 break;
@@ -341,11 +346,9 @@ vector<string> Binary::getContext(uint32_t ip, uint32_t sp) {
     Scope *scope = function->locals[0];
     if(scope) scope = scope->getScope(ip);
     while(scope) {
-        for(int i = 0; i < scope->children.size(); i++) {
-            for(int j = 0; j < scope->symbols.size(); j++) {
-                vector<string> values = scope->symbols[j]->values(sp);
-                result.insert(result.end(), values.begin(), values.end());
-            }
+        for(int j = 0; j < scope->symbols.size(); j++) {
+            vector<string> values = scope->symbols[j]->values(sp);
+            result.insert(result.end(), values.begin(), values.end());
         }
         scope = scope->parent;
     }
