@@ -349,7 +349,10 @@ void AmigaProcess::wakeUp()
 
 bool AmigaProcess::isDead() {
 	uint32_t signals = IExec->SetSignal(0, 0);
-	bool result = signals & SIGF_CHILD;
-	if(result) IExec->Wait(SIGF_CHILD);
-	return result;
+	return signals & SIGF_CHILD;
+}
+
+void AmigaProcess::clearSignals() {
+	uint32_t signals = IExec->SetSignal(0, 0);
+	if(signals) IExec->Wait(signals);
 }

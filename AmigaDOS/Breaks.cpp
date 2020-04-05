@@ -51,10 +51,11 @@ void Breaks::remove(uint32_t address)
 
 void Breaks::clear()
 {
-	for (list<Break *>::iterator it = breaks.begin(); it != breaks.end(); it++) {
-		delete *it;
-		it = breaks.erase(it);
-	}
+	breaks.clear();
+	// for (list<Break *>::iterator it = breaks.begin(); it != breaks.end(); it++) {
+	// 	delete *it;
+	// 	it = breaks.erase(it);
+	// }
 }
 
 // ------------------------------------------------------------------- //

@@ -191,6 +191,9 @@ public:
 	bool isDead() {
 		return process.isDead();
 	}
+	void clearSignals() {
+		process.clearSignals();
+	}
 	vector<string> emptyPipe() {
 		return process.emptyPipe();
 	}
@@ -441,6 +444,7 @@ int main(int argc, char *argv[])
 				break;
 		}
 	}
+	debugger.clearSignals();
 	cout << "Farewell.\n";
     return 0;
 }
