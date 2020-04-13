@@ -196,6 +196,7 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
                 break;
             }
             case N_FUN: {
+                if(function) scope->end = sym->n_value - 4; //is this true?
                 function = interpretFun(str, sym->n_value);
                 if(function) {
                     function->locals.push_back(scope = new Scope(0, function->address, symbols)); //there has to be a scope
