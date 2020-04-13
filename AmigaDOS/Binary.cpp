@@ -308,6 +308,8 @@ Function::SLine *Binary::getLocation(uint32_t address) {
         Function::SLine *sline = function->lines[k];
         if(function->address + sline->address == address)
             return sline;
+        if(function->address + sline->address > address) //relevant for return statements
+            return function->lines[k-1];
     }
     return 0;
 }
