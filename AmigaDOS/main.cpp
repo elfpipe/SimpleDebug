@@ -148,9 +148,12 @@ public:
 	void stepInto() {
 		if(!binary) return;
 
-		process.step();
-		while(!binary->getSourceLine(process.ip()))
-			process.step();
+		do {
+			if(binary->getSourceFile(process.branchAddress()).size() > 0)
+				process.step();
+			else
+				process.stepNoBranch();
+		} while(!binary->getSourceLine(process.ip()));
 	}
 	void stepOut() {
 		Breaks outBreak;

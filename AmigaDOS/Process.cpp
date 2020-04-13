@@ -330,6 +330,20 @@ void AmigaProcess::step()
 	tracer.suspend();
 }
 
+void AmigaProcess::stepNoBranch() {
+	Tracer tracer(process, &context);
+	tracer.activate(false);
+	go();
+	wait();
+	tracer.suspend();
+}
+
+uint32_t AmigaProcess::branchAddress() {
+	Tracer tracer(process, &context);
+	uint32_t result = tracer.branch();
+	return result;
+}
+
 // --------------------------------------------------------------------------- //
 
 void AmigaProcess::go()

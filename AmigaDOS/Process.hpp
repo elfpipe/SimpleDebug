@@ -84,6 +84,9 @@ public:
 	void skip();
 	void step();
 
+	void stepNoBranch();
+	uint32_t branchAddress();
+
 	uint32_t ip () { readContext(); return context.ip; }
 	uint32_t sp () { readContext(); /*return context.gpr[1]; }*/ return (uint32_t)process->pr_Task.tc_SPReg; }
 	uint32_t lr () { readContext(); return context.lr; }

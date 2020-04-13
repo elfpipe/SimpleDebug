@@ -176,6 +176,7 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
             case N_SO:
                 end = sym->n_value;
                 *_sym = ++sym;
+                if(function) scope->end = end;
                 return;
             case N_SOL:
                 source = string(stabstr + sym->n_strx);
@@ -256,7 +257,7 @@ Binary::Binary(string name, SymtabEntry *stab, const char *stabstr, uint64_t sta
 		switch (sym->n_type) {
             case N_SO:
                 objects.push_back(new SourceObject(&sym, stab, stabstr, stabsize));
-                break;
+                continue;
             default:
                 break;
         }
