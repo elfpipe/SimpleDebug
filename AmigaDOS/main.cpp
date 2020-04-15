@@ -142,8 +142,10 @@ public:
 		process.go();
 		process.wait();
 
-		linebreaks.deactivate();
-		breaks.deactivate();
+		if(!process.isDead()) {
+			linebreaks.deactivate();
+			breaks.deactivate();
+		}
 	}
 	void stepInto() {
 		if(!binary) return;
@@ -167,8 +169,10 @@ public:
 		process.go();
 		process.wait();
 
-		outBreak.deactivate();
-		breaks.deactivate();
+		if(!process.isDead()) { //on 440ep this is necessary
+			outBreak.deactivate();
+			breaks.deactivate();
+		}
 	}
 	vector<string> context() {
 		return binary ? binary->getContext(process.ip(), process.sp()) : vector<string>();
