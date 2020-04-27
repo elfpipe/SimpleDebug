@@ -89,7 +89,7 @@ bool Tracer::hasTraceBit()
 {
 	uint32 family;
 	IExec->GetCPUInfoTags(GCIT_Family, &family, TAG_DONE);
-	if (family == CPUFAMILY_4XX)
+//	if (family == CPUFAMILY_4XX || family == CPUFAMILY_E5500)
 		return false;
 	return true;
 }
