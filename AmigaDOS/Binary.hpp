@@ -77,7 +77,7 @@ public:
         this->ref = ref;
     }
     string toString() {
-        return ref->toString();
+        return ref ? ref->toString() : string();
     }
     uint32_t byteSize() {
         return ref->byteSize();
@@ -366,7 +366,7 @@ public:
             this->bitSize = bitSize;
         }
         string toString() {
-            return name + " : [" + patch::toString((int)bitOffset) + "," + patch::toString((int)bitSize) + "] of " + type->toString();
+            return name + " : [" + patch::toString((int)bitOffset) + "," + patch::toString((int)bitSize) + "] of " + (type ? type->toString() : "<no type>");
         }
     };
     vector<Entry *> entries;
@@ -405,7 +405,7 @@ class Enum : public Type {
 public:
     struct Entry {
         string name;
-        uint64_t value;
+        int64_t value;
         Entry(string name, uint64_t value) {
             this->name = name;
             this->value = value;
@@ -425,7 +425,9 @@ public:
         str.peekSkip('e');
         while(1) {
             string name = str.get(':');
-            uint64_t value = str.getInt();
+            bool negative = str.peek() == '-';
+            int _value = str.getInt();
+            int64_t value = negative ? _value : (unsigned int)_value; 
             str.peekSkip(',');
             addEntry(name, value);
             if(str.peek() == ';') {
@@ -558,7 +560,8 @@ public:
     }
     vector<string> values(uint32_t base) {
         vector<string> result;
-        vector<string> v = type->values(base + address);
+        vector<string> v;
+        if(type) v = type->values(base + address);
         if(v.size() == 1)
             result.push_back(name + " " + typeString() + " : " + v[0]);
         else {

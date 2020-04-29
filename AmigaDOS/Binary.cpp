@@ -226,7 +226,7 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
                 }
                 if(scope && scope->parent == 0) { //hackaround
                     scope->end = scope->children.size() ? scope->children[0]->end : function->lines.size() ? function->lines[function->lines.size()-1]->address : function->address;
-                    function = 0;
+                    //function = 0;
                 }
                 break;
             default:

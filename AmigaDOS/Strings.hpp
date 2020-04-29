@@ -75,11 +75,25 @@ public:
             }
         }
     }
-    int getInt() {
-        int result = 0;
+    int getInt() { //this is a little tricky because of problems with c++ and adtools and limits on enums
+        bool negative = false;
+        unsigned int result = 0;
         char c = ss.peek();
-        if(c == '-' || c >= '0' && c <= '9')
+        if(c == '-') {
+            negative = true;
+            int pos = ss.tellg();
+            skip();
+            char c2 = ss.peek();
+            if(c2 >= '0' && c2 <= '9')
+               ;
+            else
+                ss.seekg(pos);
+            c = ss.peek();
+        }
+        if(c >= '0' && c <= '9')
             ss >> result;
+        if(negative)
+            result = -result;
         return result;
     }
     char peek() {
