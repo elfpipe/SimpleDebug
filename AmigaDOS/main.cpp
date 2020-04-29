@@ -155,7 +155,7 @@ public:
 				process.step();
 			else
 				process.stepNoBranch();
-		} while(!binary->getSourceLine(process.ip()));
+		} while(!binary->isLocation(process.ip()));
 	}
 	void stepOut() {
 		Breaks outBreak;

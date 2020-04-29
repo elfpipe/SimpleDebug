@@ -169,6 +169,7 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
     string source = name;
     Function *function = 0;
     Scope *scope = 0;
+    bool closeScope = false;
     vector<Symbol *> symbols;
 	while ((uint32_t)sym < (uint32_t)stab + stabsize) {
         astream str(string(stabstr + sym->n_strx));
@@ -176,7 +177,7 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
             case N_SO:
                 end = sym->n_value;
                 *_sym = ++sym;
-                if(function) scope->end = end;
+                if(closeScope) scope->end = function->address + function->lines[function->lines.size()-1]->address;
                 return;
             case N_SOL:
                 source = string(stabstr + sym->n_strx);
@@ -196,12 +197,16 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
                 break;
             }
             case N_FUN: {
-                if(function) scope->end = sym->n_value - 4; //is this true?
+                if(closeScope) {
+                    scope->end = function->address + function->lines[function->lines.size()-1]->address;
+                    closeScope = false;
+                }
                 function = interpretFun(str, sym->n_value);
                 if(function) {
                     function->locals.push_back(scope = new Scope(0, function->address, symbols)); //there has to be a scope
                     functions.push_back(function);
                     symbols.clear();
+                    closeScope = true;
                 }
                 break;
             }
@@ -217,6 +222,7 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
                 if(scope)
                     scope->children.push_back(scope = new Scope(scope, function->address + sym->n_value, symbols));
                 symbols.clear();
+                closeScope = false;
                 break;
             }
             case N_RBRAC:
@@ -224,9 +230,8 @@ SourceObject::SourceObject(SymtabEntry **_sym, SymtabEntry *stab, const char *st
                     scope->end = function->address + sym->n_value;
                     scope = scope->parent;
                 }
-                if(scope && scope->parent == 0) { //hackaround
+                if(scope && scope->parent == 0) {
                     scope->end = scope->children.size() ? scope->children[0]->end : function->lines.size() ? function->lines[function->lines.size()-1]->address : function->address;
-                    //function = 0;
                 }
                 break;
             default:
@@ -313,6 +318,15 @@ Function::SLine *Binary::getLocation(uint32_t address) {
             return function->lines[k-1];
     }
     return 0;
+}
+bool Binary::isLocation(uint32_t address) {
+    Function *function = getFunction(address);
+    if(function) for(int k = 0; k < function->lines.size(); k++) {
+        Function::SLine *sline = function->lines[k];
+        if(function->address + sline->address == address)
+            return true;
+    }
+    return false;
 }
 string Binary::getSourceFile(uint32_t address) {
     Function::SLine *line = getLocation(address);

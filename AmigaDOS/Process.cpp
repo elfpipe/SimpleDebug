@@ -341,6 +341,7 @@ void AmigaProcess::stepNoBranch() {
 uint32_t AmigaProcess::branchAddress() {
 	Tracer tracer(process, &context);
 	uint32_t result = tracer.branch();
+	cout << "branch : " << (void *)result << "\n";
 	return result;
 }
 
