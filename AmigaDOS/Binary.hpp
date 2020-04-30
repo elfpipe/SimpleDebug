@@ -389,7 +389,8 @@ public:
         vector<string> result;
         for(int i = 0; i < entries.size(); i++) {
             uint32_t offset = entries[i]->bitOffset / 8;
-            vector<string> v = entries[i]->type->values(base + offset);
+            vector<string> v;
+            if(entries[i]->type) v = entries[i]->type->values(base + offset);
             if(v.size() == 1)
                 result.push_back(entries[i]->name + " : " + v[0]);
             else {
@@ -473,8 +474,10 @@ public:
     }
     vector<string> values(uint32_t base) {
         vector<string> result;
-        uint32_t address = *(uint32_t *)base;
-        vector<string> v = pointsTo->values(address);
+        uint32_t address = 0x0;
+        if(base && is_readable_address(base)) address = *(uint32_t *)base;
+        vector<string> v;
+        if(pointsTo && address) v = pointsTo->values(address);
         if(v.size() == 1)
             result.push_back("(*) " + v[0]);
         else
